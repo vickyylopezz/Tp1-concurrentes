@@ -3,8 +3,10 @@ use std::{
     io::{self, BufRead, BufReader, Error},
 };
 
-use pedido::Pedido;
+use crate::pedido::Pedido;
 mod pedido;
+use crate::cafetera::Cafetera;
+mod cafetera;
 
 /// Abre el archivo del path recibido por parametro y si falla vuelve a pedirlo.
 /// Ejemplo:
@@ -73,5 +75,5 @@ fn main() {
     println!("Ingrese el archivo con el pedido");
     let pedidos_archivo = read_file_lines(leer_por_pantalla()).expect("Failed to read file");
     let pedidos = pedidos(pedidos_archivo);
-    println!("{:?}", pedidos)
+    Cafetera::new().preparar_pedidos(pedidos);
 }
