@@ -23,3 +23,6 @@ pub const TIEMPO_ESPUMA_REPONER: i32 = 100;
 pub const TIEMPO_RECURSO_UNIDAD: u64 = 5;
 //Tiempo de espera para reponer el contenedor de agua
 pub const TIEMPO_AGUA_REPONER: i32 = 200;
+
+/// Cantidad maxima de cafe por pedido
+pub const MAX_CAFE_POR_PEDIDO: i32 = 10;

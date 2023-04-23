@@ -3,6 +3,8 @@ use std::{
     io::{self, BufRead, BufReader, Error},
 };
 
+use tp1::constantes::MAX_CAFE_POR_PEDIDO;
+
 use crate::pedido::Pedido;
 mod pedido;
 use crate::cafetera::Cafetera;
@@ -59,7 +61,13 @@ fn leer_por_pantalla() -> String {
 
 fn pedidos(pedidos_archivo: Vec<Vec<i32>>) -> Vec<Pedido> {
     let mut pedidos = Vec::<Pedido>::new();
-    for pedido in pedidos_archivo {
+    for (i, pedido) in pedidos_archivo.into_iter().enumerate() {
+        if pedido[0] > MAX_CAFE_POR_PEDIDO {
+            println!(
+                "La cantidad maxima de cafe por pedido es {}, pedido {} descartado",
+                MAX_CAFE_POR_PEDIDO, i
+            )
+        }
         pedidos.push(Pedido {
             cafe_molido: pedido[0],
             agua_caliente: pedido[1],

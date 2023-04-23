@@ -1,9 +1,9 @@
 use crate::pedido::Pedido;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::Condvar;
 use std::sync::Mutex;
 use std::sync::RwLock;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -27,7 +27,7 @@ pub struct Cafetera {
     contenedor_agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
     contenedor_cacao: Arc<(Mutex<ContenedorCacao>, Condvar)>,
     contenedor_espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
-    fin_pedidos: Arc<AtomicBool<>>,
+    fin_pedidos: Arc<AtomicBool>,
 }
 
 impl Cafetera {
@@ -86,17 +86,14 @@ impl Cafetera {
         }
 
         println!("Terminaron todos los pedidos");
-        //if let Ok(mut fin) = self.fin_pedidos.lock() {
-            self.fin_pedidos.store(true, Ordering::SeqCst);
-            let (_, cafe_cvar) = &*self.contenedor_cafe;
-            cafe_cvar.notify_all();
-        //}
+        self.fin_pedidos.store(true, Ordering::SeqCst);
+        let (_, cafe_cvar) = &*self.contenedor_cafe;
+        cafe_cvar.notify_all();
 
-        if let Ok(join) = thread_rellenar { join
-            .join()
-            .expect("Error al hacer join al thread de rellar cafe") }
-
-        
+        if let Ok(join) = thread_rellenar {
+            join.join()
+                .expect("Error al hacer join al thread de rellar cafe")
+        }
     }
 }
 
@@ -105,20 +102,18 @@ fn rellenar_contenedores(
     _agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
     _cacao: Arc<(Mutex<ContenedorCacao>, Condvar)>,
     _espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
-    fin_pedidos: Arc<AtomicBool<>>,
+    fin_pedidos: Arc<AtomicBool>,
 ) -> Result<JoinHandle<()>, CafeteraError> {
     let cafe_thread = thread::spawn(move || {
         let (cafe_lock, cafe_cvar) = &*cafe;
         loop {
-
             if let Ok(mut cafe_mut) = cafe_cvar.wait_while(cafe_lock.lock().unwrap(), |cont_cafe| {
                 !cont_cafe.necesito_cafe && !fin_pedidos.load(Ordering::SeqCst)
             }) {
-                
                 if fin_pedidos.load(Ordering::SeqCst) {
                     break;
                 }
-            
+
                 if cafe_mut.cafe_granos >= M {
                     println!("Recargando cafe molido");
                     thread::sleep(Duration::from_millis(TIEMPO_CAFE_REPONER));
