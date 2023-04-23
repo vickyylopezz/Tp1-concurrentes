@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Pedido {
     /// Cantidad de cafe molido
     pub cafe_molido: i32,

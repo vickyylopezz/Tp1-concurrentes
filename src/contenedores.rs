@@ -1,4 +1,6 @@
-/* #[derive(Debug)]
+use crate::constantes::{A, C, E, G, L, M};
+
+#[derive(Debug)]
 pub struct ContenedorCafe {
     /// Cantidad de cafe en granos disponible
     pub cafe_granos: i32,
@@ -8,15 +10,19 @@ pub struct ContenedorCafe {
     pub cafe_granos_consumido: i32,
     /// Cantidad de cafe molido consumido
     pub cafe_molido_consumido: i32,
+    pub necesito_cafe: bool,
+    pub vacio: bool,
 }
 
 impl ContenedorCafe {
     pub fn new() -> Self {
         ContenedorCafe {
-            cafe_granos: 0,
-            cafe_molido: 0,
+            cafe_granos: G,
+            cafe_molido: M,
             cafe_granos_consumido: 0,
             cafe_molido_consumido: 0,
+            necesito_cafe: false,
+            vacio: false,
         }
     }
 }
@@ -32,7 +38,7 @@ pub struct ContenedorAgua {
 impl ContenedorAgua {
     pub fn new() -> Self {
         ContenedorAgua {
-            agua_caliente: 0,
+            agua_caliente: A,
             agua_caliente_consumida: 0,
         }
     }
@@ -49,7 +55,7 @@ pub struct ContenedorCacao {
 impl ContenedorCacao {
     pub fn new() -> Self {
         ContenedorCacao {
-            cacao: 0,
+            cacao: C,
             cacao_consumido: 0,
         }
     }
@@ -69,11 +75,10 @@ pub struct ContenedorEspuma {
 impl ContenedorEspuma {
     pub fn new() -> Self {
         ContenedorEspuma {
-            espuma: 0,
-            leche: 0,
+            espuma: E,
+            leche: L,
             espuma_consumida: 0,
             leche_consumida: 0,
         }
     }
 }
- */
