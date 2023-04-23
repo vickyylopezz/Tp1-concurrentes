@@ -1,22 +1,17 @@
 use crate::pedido::Pedido;
-use core::num;
-use rand::{thread_rng, Rng};
 use std::sync::Arc;
 use std::sync::Condvar;
 use std::sync::Mutex;
 use std::sync::RwLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
 use std_semaphore::Semaphore;
-use tp1::constantes::A;
 use tp1::constantes::M;
-use tp1::constantes::TIEMPO_AGUA_REPONER;
 use tp1::constantes::TIEMPO_CAFE_REPONER;
-use tp1::constantes::TIEMPO_ESPUMA_REPONER;
 use tp1::constantes::TIEMPO_RECURSO_UNIDAD;
 use tp1::constantes::X;
-use tp1::contenedores;
 use tp1::error::CafeteraError;
 
 use tp1::constantes::N;
@@ -32,7 +27,7 @@ pub struct Cafetera {
     contenedor_agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
     contenedor_cacao: Arc<(Mutex<ContenedorCacao>, Condvar)>,
     contenedor_espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
-    fin_pedidos: Arc<Mutex<bool>>,
+    fin_pedidos: Arc<AtomicBool<>>,
 }
 
 impl Cafetera {
@@ -44,7 +39,7 @@ impl Cafetera {
             contenedor_agua: Arc::new((Mutex::new(ContenedorAgua::new()), Condvar::new())),
             contenedor_cacao: Arc::new((Mutex::new(ContenedorCacao::new()), Condvar::new())),
             contenedor_espuma: Arc::new((Mutex::new(ContenedorEspuma::new()), Condvar::new())),
-            fin_pedidos: Arc::new(Mutex::new(false)),
+            fin_pedidos: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -58,7 +53,7 @@ impl Cafetera {
         let cacao = self.contenedor_cacao.clone();
         let espuma = self.contenedor_espuma.clone();
         let fin_pedidos_clone = self.fin_pedidos.clone();
-        rellenar_contenedores(cafe, agua, cacao, espuma, fin_pedidos_clone);
+        let thread_rellenar = rellenar_contenedores(cafe, agua, cacao, espuma, fin_pedidos_clone);
 
         for id in 0..pedidos.len() {
             let semaforo_clone = self.dispensadores_semaforo.clone();
@@ -90,31 +85,40 @@ impl Cafetera {
                 .expect("Error al hacer join al thread del pedido");
         }
 
-        if let Ok(mut fin) = self.fin_pedidos.lock() {
-            *fin = true;
-        }
+        println!("Terminaron todos los pedidos");
+        //if let Ok(mut fin) = self.fin_pedidos.lock() {
+            self.fin_pedidos.store(true, Ordering::SeqCst);
+            let (_, cafe_cvar) = &*self.contenedor_cafe;
+            cafe_cvar.notify_all();
+        //}
+
+        if let Ok(join) = thread_rellenar { join
+            .join()
+            .expect("Error al hacer join al thread de rellar cafe") }
+
+        
     }
 }
 
 fn rellenar_contenedores(
     cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
-    agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
-    cacao: Arc<(Mutex<ContenedorCacao>, Condvar)>,
-    espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
-    fin_pedidos: Arc<Mutex<bool>>,
-) -> Result<(), CafeteraError> {
-    thread::spawn(move || {
+    _agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
+    _cacao: Arc<(Mutex<ContenedorCacao>, Condvar)>,
+    _espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
+    fin_pedidos: Arc<AtomicBool<>>,
+) -> Result<JoinHandle<()>, CafeteraError> {
+    let cafe_thread = thread::spawn(move || {
         let (cafe_lock, cafe_cvar) = &*cafe;
         loop {
-            if let Ok(fin) = fin_pedidos.lock() {
-                if *fin == true {
-                    break;
-                }
-            }
 
             if let Ok(mut cafe_mut) = cafe_cvar.wait_while(cafe_lock.lock().unwrap(), |cont_cafe| {
-                cont_cafe.necesito_cafe == false
+                !cont_cafe.necesito_cafe && !fin_pedidos.load(Ordering::SeqCst)
             }) {
+                
+                if fin_pedidos.load(Ordering::SeqCst) {
+                    break;
+                }
+            
                 if cafe_mut.cafe_granos >= M {
                     println!("Recargando cafe molido");
                     thread::sleep(Duration::from_millis(TIEMPO_CAFE_REPONER));
@@ -124,7 +128,7 @@ fn rellenar_contenedores(
                 } else {
                     println!("Recargando cafe molido");
                     thread::sleep(Duration::from_millis(TIEMPO_CAFE_REPONER));
-                    cafe_mut.cafe_molido = cafe_mut.cafe_molido + cafe_mut.cafe_granos;
+                    cafe_mut.cafe_molido += cafe_mut.cafe_granos;
                     cafe_mut.cafe_granos = 0;
                     cafe_mut.necesito_cafe = false;
                     cafe_mut.vacio = true;
@@ -136,8 +140,8 @@ fn rellenar_contenedores(
             cafe_cvar.notify_one();
         }
     });
-
-    Ok(())
+    println!("Fin thread rellenar cafe");
+    Ok(cafe_thread)
 }
 /// Se le asigna un dispensador al pedido y se lo prepara
 fn pedido(
@@ -146,9 +150,9 @@ fn pedido(
     dispensadores: Arc<RwLock<Vec<bool>>>,
     pedido: Pedido,
     cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
-    agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
-    cacao: Arc<(Mutex<ContenedorCacao>, Condvar)>,
-    espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
+    _agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
+    _cacao: Arc<(Mutex<ContenedorCacao>, Condvar)>,
+    _espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
 ) -> Result<(), CafeteraError> {
     let _access = sem.access();
     let mut num_dispensador: i32 = -1;
@@ -167,13 +171,14 @@ fn pedido(
     if let Ok(mut cafe_mut) = cafe_cvar.wait_while(cafe_lock.lock().unwrap(), |cont_cafe| {
         cont_cafe.necesito_cafe = true;
         cafe_cvar.notify_all();
-        (cont_cafe.cafe_molido < pedido.cafe_molido) && (cont_cafe.vacio == false)
+        (cont_cafe.cafe_molido < pedido.cafe_molido) && (!cont_cafe.vacio)
     }) {
-        if cafe_mut.vacio == true && cafe_mut.cafe_molido < pedido.cafe_molido {
+        if cafe_mut.vacio && cafe_mut.cafe_molido < pedido.cafe_molido {
             println!(
                 "[Pedido {}] Contenedor de cafe en granos vacio y no me alcanza el cafe molido",
                 id
             );
+            cafe_mut.necesito_cafe = false;
             return Err(CafeteraError::CafeInsuficiente);
         }
         cafe_mut.necesito_cafe = false;

@@ -1,5 +1,5 @@
 ///Capacidad de contenedor de granos a moler
-pub const G: i32 = 100;
+pub const G: i32 = 200;
 ///Capacidad de contenedor de granos molidos
 pub const M: i32 = 70;
 ///Capacidad de contenedor de leche

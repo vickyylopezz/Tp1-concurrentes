@@ -27,6 +27,12 @@ impl ContenedorCafe {
     }
 }
 
+impl Default for ContenedorCafe {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug)]
 pub struct ContenedorAgua {
     //Cantidad de agua caliente disponible
@@ -44,6 +50,12 @@ impl ContenedorAgua {
     }
 }
 
+impl Default for ContenedorAgua {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug)]
 pub struct ContenedorCacao {
     //Cantidad de cacao disponible
@@ -58,6 +70,12 @@ impl ContenedorCacao {
             cacao: C,
             cacao_consumido: 0,
         }
+    }
+}
+
+impl Default for ContenedorCacao {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -80,5 +98,11 @@ impl ContenedorEspuma {
             espuma_consumida: 0,
             leche_consumida: 0,
         }
+    }
+}
+
+impl Default for ContenedorEspuma {
+    fn default() -> Self {
+        Self::new()
     }
 }
