@@ -26,3 +26,5 @@ pub const TIEMPO_AGUA_REPONER: i32 = 200;
 
 /// Cantidad maxima de cafe por pedido (siempre debe ser menor a M)
 pub const MAX_CAFE_POR_PEDIDO: i32 = 10;
+/// Cantidad minima de cualquier recurso por pedido
+pub const MIN_CANTIDAD_POR_PEDIDO: i32 = 0;
