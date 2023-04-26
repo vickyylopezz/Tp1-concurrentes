@@ -92,7 +92,7 @@ impl Cafetera {
 
         if let Ok(join) = thread_rellenar {
             join.join()
-                .expect("Error al hacer join al thread de rellar cafe")
+                .expect("Error al hacer join al thread de rellenar cafe")
         }
     }
 }
@@ -131,11 +131,15 @@ fn rellenar_contenedores(
                     cafe_cvar.notify_all();
                     break;
                 }
+
+                if cafe_mut.cafe_granos <= M * X / 100 {
+                    println!("Cafe en granos por debajo del {}%", X);
+                }
             }
             cafe_cvar.notify_one();
         }
+        println!("Fin thread rellenar cafe");
     });
-    println!("Fin thread rellenar cafe");
     Ok(cafe_thread)
 }
 /// Se le asigna un dispensador al pedido y se lo prepara
@@ -168,12 +172,13 @@ fn pedido(
         cafe_cvar.notify_all();
         (cont_cafe.cafe_molido < pedido.cafe_molido) && (!cont_cafe.vacio)
     }) {
+        cafe_mut.necesito_cafe = false;
         if cafe_mut.vacio && cafe_mut.cafe_molido < pedido.cafe_molido {
             println!(
                 "[Pedido {}] Contenedor de cafe en granos vacio y no me alcanza el cafe molido",
                 id
             );
-            cafe_mut.necesito_cafe = false;
+            cafe_cvar.notify_all();
             return Err(CafeteraError::CafeInsuficiente);
         }
         cafe_mut.necesito_cafe = false;
@@ -184,9 +189,6 @@ fn pedido(
             TIEMPO_RECURSO_UNIDAD * pedido.cafe_molido as u64,
         ));
 
-        if cafe_mut.cafe_molido <= M * X / 100 {
-            println!("[Pedido {}] cafe molido por debajo del {}%", id, X);
-        }
         cafe_cvar.notify_all();
     }
 

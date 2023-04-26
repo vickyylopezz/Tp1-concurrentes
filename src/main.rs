@@ -66,7 +66,8 @@ fn pedidos(pedidos_archivo: Vec<Vec<i32>>) -> Vec<Pedido> {
             println!(
                 "La cantidad maxima de cafe por pedido es {}, pedido {} descartado",
                 MAX_CAFE_POR_PEDIDO, i
-            )
+            );
+            continue;
         }
         pedidos.push(Pedido {
             cafe_molido: pedido[0],
