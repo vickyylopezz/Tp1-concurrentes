@@ -1,24 +1,13 @@
 use crate::pedido::Pedido;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::sync::Condvar;
-use std::sync::Mutex;
-use std::sync::RwLock;
+use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
 use std_semaphore::Semaphore;
-use tp1::constantes::M;
-use tp1::constantes::TIEMPO_CAFE_REPONER;
-use tp1::constantes::TIEMPO_RECURSO_UNIDAD;
-use tp1::constantes::X;
+use tp1::constantes::{M, N, TIEMPO_CAFE_REPONER, TIEMPO_RECURSO_UNIDAD, X};
+use tp1::contenedores::{ContenedorAgua, ContenedorCacao, ContenedorCafe, ContenedorEspuma};
 use tp1::error::CafeteraError;
-
-use tp1::constantes::N;
-use tp1::contenedores::ContenedorAgua;
-use tp1::contenedores::ContenedorCacao;
-use tp1::contenedores::ContenedorCafe;
-use tp1::contenedores::ContenedorEspuma;
 
 pub struct Cafetera {
     dispensadores_semaforo: Arc<Semaphore>,
