@@ -65,7 +65,6 @@ pub struct ContenedorCacao {
     pub cacao: i32,
     //Cantidad de cacao consumido
     pub cacao_consumido: i32,
-    pub necesito_cacao: bool
 }
 
 impl ContenedorCacao {
@@ -73,7 +72,6 @@ impl ContenedorCacao {
         ContenedorCacao {
             cacao: C,
             cacao_consumido: 0,
-            necesito_cacao: false
         }
     }
 }
@@ -94,6 +92,7 @@ pub struct ContenedorEspuma {
     pub espuma_consumida: i32,
     //Cantidad de leche consumida
     pub leche_consumida: i32,
+    pub necesito_espuma: bool
 }
 impl ContenedorEspuma {
     pub fn new() -> Self {
@@ -102,6 +101,7 @@ impl ContenedorEspuma {
             leche: L,
             espuma_consumida: 0,
             leche_consumida: 0,
+            necesito_espuma: false
         }
     }
 }

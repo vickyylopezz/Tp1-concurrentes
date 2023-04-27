@@ -2,4 +2,5 @@
 pub enum CafeteraError {
     CacaoInsuficiente,
     CafeInsuficiente,
+    EspumaInsuficiente
 }
