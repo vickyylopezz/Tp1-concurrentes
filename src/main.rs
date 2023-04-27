@@ -3,7 +3,7 @@ use std::{
     io::{self, BufRead, BufReader, Error},
 };
 
-use tp1::constantes::{MAX_CAFE_POR_PEDIDO, MIN_CANTIDAD_POR_PEDIDO};
+use tp1::constantes::{MAX_CAFE_POR_PEDIDO, MIN_CANTIDAD_POR_PEDIDO, MAX_AGUA_POR_PEDIDO};
 
 use crate::pedido::Pedido;
 mod pedido;
@@ -78,10 +78,28 @@ fn cafe_invalido(cantidad_cafe: i32, i: usize) -> bool {
     false
 }
 
+fn agua_invalida(cantidad_agua: i32, i: usize) -> bool {
+    if cantidad_agua > MAX_AGUA_POR_PEDIDO || cantidad_agua < MIN_CANTIDAD_POR_PEDIDO {
+        if cantidad_agua > MAX_AGUA_POR_PEDIDO {
+            println!(
+                "La cantidad maxima de agua por pedido es {}, pedido {} descartado",
+                MAX_AGUA_POR_PEDIDO, i
+            );
+            return true
+        } else {
+            println!(
+                "La cantidad minima de agua por pedido es {}, pedido {} descartado",
+                MIN_CANTIDAD_POR_PEDIDO, i
+            );
+            return true
+        }
+    }
+    false
+}
 fn pedidos(pedidos_archivo: Vec<Vec<i32>>) -> Vec<Pedido> {
     let mut pedidos = Vec::<Pedido>::new();
     for (i, pedido) in pedidos_archivo.into_iter().enumerate() {
-        if cafe_invalido(pedido[0], i) {
+        if cafe_invalido(pedido[0], i) || agua_invalida(pedido[1], i) {
             continue;
         }
         pedidos.push(Pedido {

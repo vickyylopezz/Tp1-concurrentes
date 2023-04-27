@@ -1,7 +1,7 @@
 ///Capacidad de contenedor de granos a moler
 pub const G: i32 = 500;
 ///Capacidad de contenedor de granos molidos
-pub const M: i32 = 10;
+pub const M: i32 = 30;
 ///Capacidad de contenedor de leche
 pub const L: i32 = 500;
 ///Capacidad de contenedor de espuma
@@ -26,5 +26,7 @@ pub const TIEMPO_AGUA_REPONER: u64 = 5000;
 
 /// Cantidad maxima de cafe por pedido (siempre debe ser menor a M)
 pub const MAX_CAFE_POR_PEDIDO: i32 = 10;
+/// Cantidad maxima de cafe por pedido (siempre debe ser menor a A)
+pub const MAX_AGUA_POR_PEDIDO: i32 = 15;
 /// Cantidad minima de cualquier recurso por pedido
 pub const MIN_CANTIDAD_POR_PEDIDO: i32 = 0;

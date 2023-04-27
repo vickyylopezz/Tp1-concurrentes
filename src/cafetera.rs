@@ -6,7 +6,7 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 use std_semaphore::Semaphore;
 use tp1::constantes::{M, N, TIEMPO_CAFE_REPONER, TIEMPO_RECURSO_UNIDAD, X, A, TIEMPO_AGUA_REPONER};
-use tp1::contenedores::{ContenedorAgua, ContenedorCacao, ContenedorCafe, ContenedorEspuma, self};
+use tp1::contenedores::{ContenedorAgua, ContenedorCacao, ContenedorCafe, ContenedorEspuma};
 use tp1::error::CafeteraError;
 
 pub struct Cafetera {
