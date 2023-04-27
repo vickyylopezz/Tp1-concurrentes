@@ -40,7 +40,6 @@ pub struct ContenedorAgua {
     //Cantidad de agua caliente consumida
     pub agua_caliente_consumida: i32,
     pub necesito_agua: bool,
-
 }
 
 impl ContenedorAgua {
@@ -92,7 +91,7 @@ pub struct ContenedorEspuma {
     pub espuma_consumida: i32,
     //Cantidad de leche consumida
     pub leche_consumida: i32,
-    pub necesito_espuma: bool
+    pub necesito_espuma: bool,
 }
 impl ContenedorEspuma {
     pub fn new() -> Self {
@@ -101,7 +100,7 @@ impl ContenedorEspuma {
             leche: L,
             espuma_consumida: 0,
             leche_consumida: 0,
-            necesito_espuma: false
+            necesito_espuma: false,
         }
     }
 }

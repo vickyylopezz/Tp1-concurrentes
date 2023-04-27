@@ -5,7 +5,10 @@ use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
 use std_semaphore::Semaphore;
-use tp1::constantes::{M, N, TIEMPO_CAFE_REPONER, TIEMPO_RECURSO_UNIDAD, X, A, TIEMPO_AGUA_REPONER, VACIO, E, TIEMPO_ESPUMA_REPONER, C, L};
+use tp1::constantes::{
+    A, C, E, L, M, N, TIEMPO_AGUA_REPONER, TIEMPO_CAFE_REPONER, TIEMPO_ESPUMA_REPONER,
+    TIEMPO_RECURSO_UNIDAD, VACIO, X,
+};
 use tp1::contenedores::{ContenedorAgua, ContenedorCacao, ContenedorCafe, ContenedorEspuma};
 use tp1::error::CafeteraError;
 
@@ -42,7 +45,7 @@ impl Cafetera {
         let espuma = self.contenedor_espuma.clone();
 
         let thread_rellenar = rellenar_contenedores(cafe, agua, espuma, &self.fin_pedidos);
-        
+
         for id in 0..pedidos.len() {
             let semaforo_clone = self.dispensadores_semaforo.clone();
             let dispensadores_clone = self.dispensadores.clone();
@@ -84,11 +87,11 @@ impl Cafetera {
 
         if let Ok(contenedores) = thread_rellenar {
             for contenedor in contenedores {
-                contenedor.join()
-                .expect("Error al hacer join al thread de rellenar cafe")
+                contenedor
+                    .join()
+                    .expect("Error al hacer join al thread de rellenar cafe")
             }
         }
-        
     }
 }
 
@@ -146,7 +149,7 @@ fn rellenar_contenedores(
                 if fin_pedidos_agua.load(Ordering::SeqCst) {
                     break;
                 }
-                
+
                 println!("Recargando agua caliente");
                 agua_mut.agua_caliente = A;
                 thread::sleep(Duration::from_millis(TIEMPO_AGUA_REPONER));
@@ -161,9 +164,11 @@ fn rellenar_contenedores(
     let espuma_thread = thread::spawn(move || {
         let (espuma_lock, espuma_cvar) = &*espuma;
         loop {
-            if let Ok(mut espuma_mut) = espuma_cvar.wait_while(espuma_lock.lock().unwrap(), |cont_espuma| {
-                !cont_espuma.necesito_espuma && !fin_pedidos_espuma.load(Ordering::SeqCst)
-            }) {
+            if let Ok(mut espuma_mut) =
+                espuma_cvar.wait_while(espuma_lock.lock().unwrap(), |cont_espuma| {
+                    !cont_espuma.necesito_espuma && !fin_pedidos_espuma.load(Ordering::SeqCst)
+                })
+            {
                 if fin_pedidos_espuma.load(Ordering::SeqCst) {
                     break;
                 }
@@ -255,27 +260,27 @@ fn pedido(
     }) {
         agua_mut.necesito_agua = false;
 
-
         agua_mut.agua_caliente_consumida += pedido.agua_caliente;
         agua_mut.agua_caliente -= pedido.agua_caliente;
         println!("[Pedido {}] sirviendo agua", id);
-        thread::sleep(Duration::from_millis(TIEMPO_RECURSO_UNIDAD*pedido.agua_caliente as u64));
+        thread::sleep(Duration::from_millis(
+            TIEMPO_RECURSO_UNIDAD * pedido.agua_caliente as u64,
+        ));
         agua_cvar.notify_all();
     }
 
     if let Ok(mut cacao_mut) = cacao.lock() {
         if cacao_mut.cacao < pedido.cacao {
-            println!(
-                "[Pedido {}] No me alcanza el cacao",
-                id
-            );
+            println!("[Pedido {}] No me alcanza el cacao", id);
             return Err(CafeteraError::CacaoInsuficiente);
         }
 
         println!("[Pedido {}] sirviendo cacao", id);
         cacao_mut.cacao_consumido += pedido.cacao;
         cacao_mut.cacao -= pedido.cacao;
-        thread::sleep(Duration::from_millis(TIEMPO_RECURSO_UNIDAD*pedido.cacao as u64));
+        thread::sleep(Duration::from_millis(
+            TIEMPO_RECURSO_UNIDAD * pedido.cacao as u64,
+        ));
         if cacao_mut.cacao <= C * X / 100 {
             println!("Cacao por debajo del {}%", X);
         }
@@ -299,7 +304,9 @@ fn pedido(
         println!("[Pedido {}] sirviendo espuma", id);
         espuma_mut.espuma_consumida += pedido.espuma;
         espuma_mut.espuma -= pedido.espuma;
-        thread::sleep(Duration::from_millis(TIEMPO_RECURSO_UNIDAD*pedido.espuma as u64));
+        thread::sleep(Duration::from_millis(
+            TIEMPO_RECURSO_UNIDAD * pedido.espuma as u64,
+        ));
         espuma_cvar.notify_all();
     }
 
