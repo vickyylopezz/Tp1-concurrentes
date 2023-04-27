@@ -5,7 +5,7 @@ use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
 use std_semaphore::Semaphore;
-use tp1::constantes::{M, N, TIEMPO_CAFE_REPONER, TIEMPO_RECURSO_UNIDAD, X, A, TIEMPO_AGUA_REPONER};
+use tp1::constantes::{M, N, TIEMPO_CAFE_REPONER, TIEMPO_RECURSO_UNIDAD, X, A, TIEMPO_AGUA_REPONER, VACIO};
 use tp1::contenedores::{ContenedorAgua, ContenedorCacao, ContenedorCafe, ContenedorEspuma};
 use tp1::error::CafeteraError;
 
@@ -14,7 +14,7 @@ pub struct Cafetera {
     dispensadores: Arc<RwLock<Vec<bool>>>,
     contenedor_cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
     contenedor_agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
-    contenedor_cacao: Arc<(Mutex<ContenedorCacao>, Condvar)>,
+    contenedor_cacao: Arc<Mutex<ContenedorCacao>>,
     contenedor_espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
     fin_pedidos: Arc<AtomicBool>,
 }
@@ -26,7 +26,7 @@ impl Cafetera {
             dispensadores: Arc::new(RwLock::new(vec![false; N as usize])),
             contenedor_cafe: Arc::new((Mutex::new(ContenedorCafe::new()), Condvar::new())),
             contenedor_agua: Arc::new((Mutex::new(ContenedorAgua::new()), Condvar::new())),
-            contenedor_cacao: Arc::new((Mutex::new(ContenedorCacao::new()), Condvar::new())),
+            contenedor_cacao: Arc::new(Mutex::new(ContenedorCacao::new())),
             contenedor_espuma: Arc::new((Mutex::new(ContenedorEspuma::new()), Condvar::new())),
             fin_pedidos: Arc::new(AtomicBool::new(false)),
         }
@@ -94,7 +94,7 @@ impl Cafetera {
 fn rellenar_contenedores(
     cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
     agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
-    _cacao: Arc<(Mutex<ContenedorCacao>, Condvar)>,
+    _cacao: Arc<Mutex<ContenedorCacao>>,
     _espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
     fin_pedidos: &Arc<AtomicBool>,
 ) -> Result<Vec<JoinHandle<()>>, CafeteraError> {
@@ -169,7 +169,7 @@ fn pedido(
     pedido: Pedido,
     cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
     agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
-    _cacao: Arc<(Mutex<ContenedorCacao>, Condvar)>,
+    cacao: Arc<Mutex<ContenedorCacao>>,
     _espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
 ) -> Result<(), CafeteraError> {
     let _access = sem.access();
@@ -227,21 +227,24 @@ fn pedido(
         agua_cvar.notify_all();
     }
 
-    /*let (cacao_lock, cacao_cvar) = &*cacao;
-    if let Ok(mut cacao_mut) = cacao_cvar.wait_while(cacao_lock.lock().unwrap(), |cont_cacao| {
-        cont_cacao.cacao < pedido.cacao
-    }) {
+    if let Ok(mut cacao_mut) = cacao.lock() {
+        if cacao_mut.cacao < pedido.cacao {
+            println!(
+                "[Pedido {}] No me alcanza el cacao",
+                id
+            );
+            //cacao_cvar.notify_all();
+            return Err(CafeteraError::CafeInsuficiente);
+        }
+
         println!("[Pedido {}] sirviendo cacao", id);
         cacao_mut.cacao_consumido += pedido.cacao;
         cacao_mut.cacao -= pedido.cacao;
         thread::sleep(Duration::from_millis(TIEMPO_RECURSO_UNIDAD*pedido.cacao as u64));
-        cacao_cvar.notify_all();
-    } else {
-        println!("[Pedido {}] cacao insuficiente, no se puede terminar el pedido", id);
-        return Err(CafeteraError::CacaoInsuficiente)
+        //cacao_cvar.notify_all();
     }
 
-    let (espuma_lock, espuma_cvar) = &*espuma;
+    /*let (espuma_lock, espuma_cvar) = &*espuma;
     if let Ok(mut espuma_mut) = espuma_cvar.wait_while(espuma_lock.lock().unwrap(), |cont_espuma| {
         cont_espuma.espuma < pedido.espuma
     }) {

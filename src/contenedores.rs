@@ -65,6 +65,7 @@ pub struct ContenedorCacao {
     pub cacao: i32,
     //Cantidad de cacao consumido
     pub cacao_consumido: i32,
+    pub necesito_cacao: bool
 }
 
 impl ContenedorCacao {
@@ -72,6 +73,7 @@ impl ContenedorCacao {
         ContenedorCacao {
             cacao: C,
             cacao_consumido: 0,
+            necesito_cacao: false
         }
     }
 }
