@@ -39,6 +39,8 @@ pub struct ContenedorAgua {
     pub agua_caliente: i32,
     //Cantidad de agua caliente consumida
     pub agua_caliente_consumida: i32,
+    pub necesito_agua: bool,
+
 }
 
 impl ContenedorAgua {
@@ -46,6 +48,7 @@ impl ContenedorAgua {
         ContenedorAgua {
             agua_caliente: A,
             agua_caliente_consumida: 0,
+            necesito_agua: false,
         }
     }
 }

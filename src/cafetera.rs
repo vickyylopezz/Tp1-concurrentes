@@ -5,8 +5,8 @@ use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
 use std_semaphore::Semaphore;
-use tp1::constantes::{M, N, TIEMPO_CAFE_REPONER, TIEMPO_RECURSO_UNIDAD, X};
-use tp1::contenedores::{ContenedorAgua, ContenedorCacao, ContenedorCafe, ContenedorEspuma};
+use tp1::constantes::{M, N, TIEMPO_CAFE_REPONER, TIEMPO_RECURSO_UNIDAD, X, A, TIEMPO_AGUA_REPONER};
+use tp1::contenedores::{ContenedorAgua, ContenedorCacao, ContenedorCafe, ContenedorEspuma, self};
 use tp1::error::CafeteraError;
 
 pub struct Cafetera {
@@ -41,9 +41,9 @@ impl Cafetera {
         let agua = self.contenedor_agua.clone();
         let cacao = self.contenedor_cacao.clone();
         let espuma = self.contenedor_espuma.clone();
-        let fin_pedidos_clone = self.fin_pedidos.clone();
-        let thread_rellenar = rellenar_contenedores(cafe, agua, cacao, espuma, fin_pedidos_clone);
 
+        let thread_rellenar = rellenar_contenedores(cafe, agua, cacao, espuma, &self.fin_pedidos);
+        
         for id in 0..pedidos.len() {
             let semaforo_clone = self.dispensadores_semaforo.clone();
             let dispensadores_clone = self.dispensadores.clone();
@@ -78,28 +78,34 @@ impl Cafetera {
         self.fin_pedidos.store(true, Ordering::SeqCst);
         let (_, cafe_cvar) = &*self.contenedor_cafe;
         cafe_cvar.notify_all();
+        let (_, agua_cvar) = &*self.contenedor_agua;
+        agua_cvar.notify_all();
 
-        if let Ok(join) = thread_rellenar {
-            join.join()
+        if let Ok(contenedores) = thread_rellenar {
+            for contenedor in contenedores {
+                contenedor.join()
                 .expect("Error al hacer join al thread de rellenar cafe")
+            }
         }
+        
     }
 }
 
 fn rellenar_contenedores(
     cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
-    _agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
+    agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
     _cacao: Arc<(Mutex<ContenedorCacao>, Condvar)>,
     _espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
-    fin_pedidos: Arc<AtomicBool>,
-) -> Result<JoinHandle<()>, CafeteraError> {
+    fin_pedidos: &Arc<AtomicBool>,
+) -> Result<Vec<JoinHandle<()>>, CafeteraError> {
+    let fin_pedidos_cafe = fin_pedidos.clone();
     let cafe_thread = thread::spawn(move || {
         let (cafe_lock, cafe_cvar) = &*cafe;
         loop {
             if let Ok(mut cafe_mut) = cafe_cvar.wait_while(cafe_lock.lock().unwrap(), |cont_cafe| {
-                !cont_cafe.necesito_cafe && !fin_pedidos.load(Ordering::SeqCst)
+                !cont_cafe.necesito_cafe && !fin_pedidos_cafe.load(Ordering::SeqCst)
             }) {
-                if fin_pedidos.load(Ordering::SeqCst) {
+                if fin_pedidos_cafe.load(Ordering::SeqCst) {
                     break;
                 }
 
@@ -129,8 +135,32 @@ fn rellenar_contenedores(
         }
         println!("Fin thread rellenar cafe");
     });
-    Ok(cafe_thread)
+
+    let fin_pedidos_agua = fin_pedidos.clone();
+    let agua_thread = thread::spawn(move || {
+        let (agua_lock, agua_cvar) = &*agua;
+        loop {
+            if let Ok(mut agua_mut) = agua_cvar.wait_while(agua_lock.lock().unwrap(), |cont_agua| {
+                !cont_agua.necesito_agua && !fin_pedidos_agua.load(Ordering::SeqCst)
+            }) {
+                if fin_pedidos_agua.load(Ordering::SeqCst) {
+                    break;
+                }
+                
+                println!("Recargando agua caliente");
+                agua_mut.agua_caliente = A;
+                thread::sleep(Duration::from_millis(TIEMPO_AGUA_REPONER));
+                agua_mut.necesito_agua = false;
+            }
+            agua_cvar.notify_one();
+        }
+        println!("Fin thread rellenar agua");
+    });
+
+    let threads = vec![cafe_thread, agua_thread];
+    Ok(threads)
 }
+
 /// Se le asigna un dispensador al pedido y se lo prepara
 fn pedido(
     id: i32,
@@ -138,7 +168,7 @@ fn pedido(
     dispensadores: Arc<RwLock<Vec<bool>>>,
     pedido: Pedido,
     cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
-    _agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
+    agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
     _cacao: Arc<(Mutex<ContenedorCacao>, Condvar)>,
     _espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
 ) -> Result<(), CafeteraError> {
@@ -171,9 +201,9 @@ fn pedido(
             return Err(CafeteraError::CafeInsuficiente);
         }
         cafe_mut.necesito_cafe = false;
-        println!("[Pedido {}] sirviendo cafe", id);
         cafe_mut.cafe_molido_consumido += pedido.cafe_molido;
         cafe_mut.cafe_molido -= pedido.cafe_molido;
+        println!("[Pedido {}] sirviendo cafe", id);
         thread::sleep(Duration::from_millis(
             TIEMPO_RECURSO_UNIDAD * pedido.cafe_molido as u64,
         ));
@@ -181,24 +211,21 @@ fn pedido(
         cafe_cvar.notify_all();
     }
 
-    /*let (agua_lock, agua_cvar) = &*agua;
+    let (agua_lock, agua_cvar) = &*agua;
     if let Ok(mut agua_mut) = agua_cvar.wait_while(agua_lock.lock().unwrap(), |cont_agua| {
+        cont_agua.necesito_agua = true;
+        agua_cvar.notify_all();
         cont_agua.agua_caliente < pedido.agua_caliente
     }) {
-        println!("[Pedido {}] sirviendo agua", id);
-        println!("{}", agua_mut.agua_caliente);
+        agua_mut.necesito_agua = false;
+
 
         agua_mut.agua_caliente_consumida += pedido.agua_caliente;
         agua_mut.agua_caliente -= pedido.agua_caliente;
+        println!("[Pedido {}] sirviendo agua", id);
         thread::sleep(Duration::from_millis(TIEMPO_RECURSO_UNIDAD*pedido.agua_caliente as u64));
         agua_cvar.notify_all();
-
-        if agua_mut.agua_caliente <  A * X / 100{
-            println!("[Pedido {}] agua por debajo del {}%, recargando", id, X);
-            thread::sleep(Duration::from_millis(TIEMPO_AGUA_REPONER as u64));
-            agua_mut.agua_caliente = A;
-        }
-    }*/
+    }
 
     /*let (cacao_lock, cacao_cvar) = &*cacao;
     if let Ok(mut cacao_mut) = cacao_cvar.wait_while(cacao_lock.lock().unwrap(), |cont_cacao| {

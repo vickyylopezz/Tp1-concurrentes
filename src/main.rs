@@ -59,22 +59,29 @@ fn leer_por_pantalla() -> String {
     archivo_ingresado.trim().to_string()
 }
 
+fn cafe_invalido(cantidad_cafe: i32, i: usize) -> bool {
+    if cantidad_cafe > MAX_CAFE_POR_PEDIDO || cantidad_cafe < MIN_CANTIDAD_POR_PEDIDO {
+        if cantidad_cafe > MAX_CAFE_POR_PEDIDO {
+            println!(
+                "La cantidad maxima de cafe por pedido es {}, pedido {} descartado",
+                MAX_CAFE_POR_PEDIDO, i
+            );
+            return true
+        } else {
+            println!(
+                "La cantidad minima de cafe por pedido es {}, pedido {} descartado",
+                MIN_CANTIDAD_POR_PEDIDO, i
+            );
+            return true
+        }
+    }
+    false
+}
+
 fn pedidos(pedidos_archivo: Vec<Vec<i32>>) -> Vec<Pedido> {
     let mut pedidos = Vec::<Pedido>::new();
     for (i, pedido) in pedidos_archivo.into_iter().enumerate() {
-        if pedido[0] > MAX_CAFE_POR_PEDIDO || pedido[0] < MIN_CANTIDAD_POR_PEDIDO {
-            if pedido[0] > MAX_CAFE_POR_PEDIDO {
-                println!(
-                    "La cantidad maxima de cafe por pedido es {}, pedido {} descartado",
-                    MAX_CAFE_POR_PEDIDO, i
-                );
-            } else {
-                println!(
-                    "La cantidad minima de cafe por pedido es {}, pedido {} descartado",
-                    MIN_CANTIDAD_POR_PEDIDO, i
-                );
-            }
-
+        if cafe_invalido(pedido[0], i) {
             continue;
         }
         pedidos.push(Pedido {
