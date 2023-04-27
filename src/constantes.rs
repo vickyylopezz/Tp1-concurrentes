@@ -30,6 +30,8 @@ pub const MAX_CAFE_POR_PEDIDO: i32 = 10;
 pub const MAX_AGUA_POR_PEDIDO: i32 = 15;
 /// Cantidad maxima de cacao por pedido (siempre debe ser menor a C)
 pub const MAX_CACAO_POR_PEDIDO: i32 = 8;
+/// Cantidad maxima de cacao por pedido (siempre debe ser menor a E)
+pub const MAX_ESPUMA_POR_PEDIDO: i32 = 10;
 /// Cantidad minima de cualquier recurso por pedido
 pub const MIN_CANTIDAD_POR_PEDIDO: i32 = 0;
 /// Indica que el contenedor esta vacio cuando si cantidad es 0
