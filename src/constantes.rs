@@ -1,7 +1,7 @@
 ///Capacidad de contenedor de granos a moler
-pub const G: i32 = 500;
+pub const G: i32 = 100;
 ///Capacidad de contenedor de granos molidos
-pub const M: i32 = 300;
+pub const M: i32 = 30;
 ///Capacidad de contenedor de leche
 pub const L: i32 = 150;
 ///Capacidad de contenedor de espuma
@@ -36,3 +36,5 @@ pub const MAX_ESPUMA_POR_PEDIDO: i32 = 10;
 pub const MIN_CANTIDAD_POR_PEDIDO: i32 = 0;
 /// Indica que el contenedor esta vacio cuando si cantidad es 0
 pub const VACIO: i32 = 0;
+/// Cada esta cantidad de pedidos se muestran las estadisticas
+pub const MOSTRAR_ESTADISTICAS: usize = 3;

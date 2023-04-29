@@ -11,7 +11,6 @@ pub struct ContenedorCafe {
     /// Cantidad de cafe molido consumido
     pub cafe_molido_consumido: i32,
     pub necesito_cafe: bool,
-    pub vacio: bool,
 }
 
 impl ContenedorCafe {
@@ -22,7 +21,6 @@ impl ContenedorCafe {
             cafe_granos_consumido: 0,
             cafe_molido_consumido: 0,
             necesito_cafe: false,
-            vacio: false,
         }
     }
 }

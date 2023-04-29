@@ -7,7 +7,7 @@ use std::time::Duration;
 use std_semaphore::Semaphore;
 use tp1::constantes::{
     A, C, E, L, M, N, TIEMPO_AGUA_REPONER, TIEMPO_CAFE_REPONER, TIEMPO_ESPUMA_REPONER,
-    TIEMPO_RECURSO_UNIDAD, VACIO, X,
+    TIEMPO_RECURSO_UNIDAD, VACIO, X, MOSTRAR_ESTADISTICAS, G,
 };
 use tp1::contenedores::{ContenedorAgua, ContenedorCacao, ContenedorCafe, ContenedorEspuma};
 use tp1::error::CafeteraError;
@@ -20,6 +20,9 @@ pub struct Cafetera {
     contenedor_cacao: Arc<Mutex<ContenedorCacao>>,
     contenedor_espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
     fin_pedidos: Arc<AtomicBool>,
+    pedidos_completados: Arc<Mutex<i32>>,
+    pedidos_incompletos: Arc<Mutex<i32>>,
+    estadisticas: Arc<(Mutex<bool>,Condvar)>,
 }
 
 impl Cafetera {
@@ -32,6 +35,9 @@ impl Cafetera {
             contenedor_cacao: Arc::new(Mutex::new(ContenedorCacao::new())),
             contenedor_espuma: Arc::new((Mutex::new(ContenedorEspuma::new()), Condvar::new())),
             fin_pedidos: Arc::new(AtomicBool::new(false)),
+            pedidos_completados: Arc::new(Mutex::new(0)),
+            pedidos_incompletos: Arc::new(Mutex::new(0)),
+            estadisticas: Arc::new((Mutex::new(false), Condvar::new())),
         }
     }
 
@@ -56,8 +62,12 @@ impl Cafetera {
             let cacao_pedido = self.contenedor_cacao.clone();
             let espuma_pedido = self.contenedor_espuma.clone();
 
+            let pedidos_com = self.pedidos_completados.clone();
+            let pedidos_incom = self.pedidos_incompletos.clone();
+
+            let estadisticas = self.estadisticas.clone();
             pedidos_handle.push(thread::spawn(move || {
-                pedido(
+                match pedido(
                     id as i32,
                     semaforo_clone,
                     dispensadores_clone,
@@ -66,14 +76,45 @@ impl Cafetera {
                     agua_pedido,
                     cacao_pedido,
                     espuma_pedido,
-                );
+                ) {
+                    Ok(_) => {
+                        if let Ok(mut pedidos_compeltos) = pedidos_com.lock() {
+                            *pedidos_compeltos += 1
+                        }
+                    } ,
+                    Err(_) => {
+                        if let Ok(mut pedidos_incompeltos) = pedidos_incom.lock() {
+                            *pedidos_incompeltos += 1
+                        }
+                    },
+                }
+
+                if id % MOSTRAR_ESTADISTICAS == 0 {
+                    let (estadisticas_lock, estadisticas_cvar) = &*estadisticas;
+                    if let Ok(mut estadisticas_mut) = estadisticas_lock.lock() {
+                        *estadisticas_mut = true;
+                    }   
+                    estadisticas_cvar.notify_all();
+                }
+                
             }));
+
         }
 
+       self.mostrar_estadisticas();
+        
         for pedido in pedidos_handle {
             pedido
                 .join()
                 .expect("Error al hacer join al thread del pedido");
+        }
+
+        if let Ok(pedidos_completos) = self.pedidos_completados.lock() {
+            println!("Cantidad de pedidos completados: {} de {}", pedidos_completos, pedidos.len())
+        }
+
+        if let Ok(pedidos_incompeltos) = self.pedidos_incompletos.lock() {
+            println!("Cantidad de pedidos no completados: {} de {}", pedidos_incompeltos, pedidos.len())
         }
 
         println!("Terminaron todos los pedidos");
@@ -93,7 +134,39 @@ impl Cafetera {
             }
         }
     }
+
+    fn mostrar_estadisticas(&self) -> JoinHandle<()>{
+        let estadisticas = self.estadisticas.clone();
+        let contenedor_cafe = self.contenedor_cafe.clone();
+        thread::spawn(move || {
+            loop {
+                let (estadisticas_lock, estadisticas_cvar) = &*estadisticas;
+                if let Ok(mut estadisticas_mut) = estadisticas_cvar.wait_while( estadisticas_lock.lock().unwrap(), |estadisticas|{
+                    *estadisticas == false
+                }) {
+                    *estadisticas_mut = false;
+                    estadisticas_cvar.notify_all();
+                    let (cafe_lock, _) = &*contenedor_cafe;
+                    if let Ok(cafe_mut) = cafe_lock.lock() {
+                        println!("ESTADITICAS");
+                        println!("-------------------------------------");
+                        println!("Nivel contenedor cafe molido: {} de {}", cafe_mut.cafe_molido, M);
+                        println!("Nivel contenedor cafe en grano: {} de {}", cafe_mut.cafe_granos, G);
+                        println!("Cafe molido consumido: {}", cafe_mut.cafe_molido_consumido);
+                        println!("Cafe en granos consumido: {}", cafe_mut.cafe_granos_consumido);
+                        println!("-------------------------------------");
+                    }
+                }
+    
+            }
+            
+
+        })
+        
+
+    }
 }
+
 
 fn rellenar_contenedores(
     cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
@@ -116,15 +189,16 @@ fn rellenar_contenedores(
                     println!("Recargando cafe molido");
                     thread::sleep(Duration::from_millis(TIEMPO_CAFE_REPONER));
                     cafe_mut.cafe_granos -= M - cafe_mut.cafe_molido;
+                    cafe_mut.cafe_granos_consumido += M - cafe_mut.cafe_molido;
                     cafe_mut.cafe_molido = M;
                     cafe_mut.necesito_cafe = false;
                 } else {
                     println!("Recargando cafe molido");
                     thread::sleep(Duration::from_millis(TIEMPO_CAFE_REPONER));
                     cafe_mut.cafe_molido += cafe_mut.cafe_granos;
+                    cafe_mut.cafe_granos_consumido += cafe_mut.cafe_granos;
                     cafe_mut.cafe_granos = 0;
                     cafe_mut.necesito_cafe = false;
-                    cafe_mut.vacio = true;
                     println!("Contenedor de cafe en granos vacio");
                     cafe_cvar.notify_all();
                     break;
@@ -231,10 +305,11 @@ fn pedido(
     if let Ok(mut cafe_mut) = cafe_cvar.wait_while(cafe_lock.lock().unwrap(), |cont_cafe| {
         cont_cafe.necesito_cafe = true;
         cafe_cvar.notify_all();
-        (cont_cafe.cafe_molido < pedido.cafe_molido) && (!cont_cafe.vacio)
+        println!("Necesito cafe: {} y tengo {}", pedido.cafe_molido, cont_cafe.cafe_molido);
+        (cont_cafe.cafe_molido < pedido.cafe_molido) && (cont_cafe.cafe_granos != VACIO)
     }) {
         cafe_mut.necesito_cafe = false;
-        if cafe_mut.vacio && cafe_mut.cafe_molido < pedido.cafe_molido {
+        if cafe_mut.cafe_granos == VACIO && cafe_mut.cafe_molido < pedido.cafe_molido {
             println!(
                 "[Pedido {}] Contenedor de cafe en granos vacio y no me alcanza el cafe molido",
                 id
@@ -313,6 +388,7 @@ fn pedido(
     if let Ok(mut dispensadores_mut) = dispensadores.write() {
         dispensadores_mut[num_dispensador as usize] = false;
     }
+
     println!("[Pedido {}] terminé", id);
 
     Ok(())
