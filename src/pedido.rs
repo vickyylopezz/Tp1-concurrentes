@@ -8,5 +8,4 @@ pub struct Pedido {
     pub cacao: i32,
     /// Cantidad de espuma
     pub espuma: i32,
-
 }
