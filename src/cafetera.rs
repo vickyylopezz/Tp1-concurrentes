@@ -21,7 +21,6 @@ pub struct Cafetera {
     contenedor_espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
     fin_pedidos: Arc<AtomicBool>,
     pedidos_completados: Arc<Mutex<i32>>,
-    pedidos_incompletos: Arc<Mutex<i32>>,
 }
 
 impl Cafetera {
@@ -35,7 +34,6 @@ impl Cafetera {
             contenedor_espuma: Arc::new((Mutex::new(ContenedorEspuma::new()), Condvar::new())),
             fin_pedidos: Arc::new(AtomicBool::new(false)),
             pedidos_completados: Arc::new(Mutex::new(0)),
-            pedidos_incompletos: Arc::new(Mutex::new(0)),
         }
     }
 
@@ -50,7 +48,9 @@ impl Cafetera {
 
         let thread_rellenar = rellenar_contenedores(cafe, agua, espuma, &self.fin_pedidos);
 
-        self.mostrar_estadisticas(pedidos.len());
+        let pedidos_com = self.pedidos_completados.clone();
+        let thread_estadisticas =
+            self.mostrar_estadisticas(pedidos.len(), pedidos_com, &self.fin_pedidos);
 
         for id in 0..pedidos.len() {
             let semaforo_clone = self.dispensadores_semaforo.clone();
@@ -63,10 +63,9 @@ impl Cafetera {
             let espuma_pedido = self.contenedor_espuma.clone();
 
             let pedidos_com = self.pedidos_completados.clone();
-            let pedidos_incom = self.pedidos_incompletos.clone();
 
             pedidos_handle.push(thread::spawn(move || {
-                match pedido(
+                if pedido(
                     id as i32,
                     semaforo_clone,
                     dispensadores_clone,
@@ -75,16 +74,11 @@ impl Cafetera {
                     agua_pedido,
                     cacao_pedido,
                     espuma_pedido,
-                ) {
-                    Ok(_) => {
-                        if let Ok(mut pedidos_compeltos) = pedidos_com.lock() {
-                            *pedidos_compeltos += 1;
-                        }
-                    }
-                    Err(_) => {
-                        if let Ok(mut pedidos_incompeltos) = pedidos_incom.lock() {
-                            *pedidos_incompeltos += 1
-                        }
+                )
+                .is_ok()
+                {
+                    if let Ok(mut pedidos_compeltos) = pedidos_com.lock() {
+                        *pedidos_compeltos += 1;
                     }
                 }
             }));
@@ -101,13 +95,10 @@ impl Cafetera {
                 "Cantidad de pedidos completados: {} de {}",
                 pedidos_completos,
                 pedidos.len()
-            )
-        }
-
-        if let Ok(pedidos_incompeltos) = self.pedidos_incompletos.lock() {
+            );
             println!(
                 "Cantidad de pedidos no completados: {} de {}",
-                pedidos_incompeltos,
+                pedidos.len() as i32 - *pedidos_completos,
                 pedidos.len()
             )
         }
@@ -125,18 +116,31 @@ impl Cafetera {
             for contenedor in contenedores {
                 contenedor
                     .join()
-                    .expect("Error al hacer join al thread de rellenar cafe")
+                    .expect("Error al hacer join al thread de rellenar recurso")
             }
         }
+
+        thread_estadisticas
+            .join()
+            .expect("Error al hacer join al thread de las estadisticas")
     }
 
-    fn mostrar_estadisticas(&self, cant_pedidos: usize) -> JoinHandle<()> {
+    fn mostrar_estadisticas(
+        &self,
+        cant_pedidos_total: usize,
+        cant_pedidos: Arc<Mutex<i32>>,
+        fin_pedidos: &Arc<AtomicBool>,
+    ) -> JoinHandle<()> {
         let contenedor_cafe = self.contenedor_cafe.clone();
         let contenedor_agua = self.contenedor_agua.clone();
         let contenedor_cacao = self.contenedor_cacao.clone();
         let contenedor_espuma = self.contenedor_espuma.clone();
+        let fin_pedidos = fin_pedidos.clone();
 
         thread::spawn(move || loop {
+            if fin_pedidos.load(Ordering::SeqCst) {
+                break;
+            }
             let mut cafe_molido = 0;
             let mut cafe_molido_consumido = 0;
 
@@ -176,11 +180,19 @@ impl Cafetera {
                 leche = espuma_mut.leche;
                 leche_consumida = espuma_mut.leche_consumida;
             }
+            let mut pedidos_completados = 0;
+            if let Ok(pedidos_compeltos) = cant_pedidos.lock() {
+                pedidos_completados = *pedidos_compeltos;
+            }
 
             println!("ESTADITICAS");
             println!("-------------------------------------");
             println!("Nivel contenedores -> cafe molido: {} de {}, cafe en granos: {} de {}, agua_caliente: {} de {}, cacao: {} de {} ,espuma: {} de {} y leche: {} de {}", cafe_molido, M, cafe_granos, G, agua_caliente, A, cacao, C, espuma, E, leche, L);
             println!("Consumido -> cafe_molido: {}, cafe granos: {}, agua caliente: {}, cacao: {}, espuma: {} y leche: {}", cafe_molido_consumido, cafe_granos_consumido, agua_caliente_consumida, cacao_consumido, espuma_consumida, leche_consumida);
+            println!(
+                "Cantidad de pedidos completados: {} de {}",
+                pedidos_completados, cant_pedidos_total
+            );
             println!("-------------------------------------");
 
             thread::sleep(Duration::from_millis(MOSTRAR_ESTADISTICAS));
