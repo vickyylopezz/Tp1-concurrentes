@@ -42,10 +42,10 @@ impl Default for ContenedorEspuma {
 
 /// Rellena el contenedor de espuma consumiendo el contenedor de leche
 pub fn rellenar_contenedor_espuma(
-    espuma_lock: &Mutex<ContenedorEspuma>,
-    espuma_cvar: &Condvar,
+    espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
     fin_pedidos_espuma: Arc<AtomicBool>,
 ) {
+    let (espuma_lock, espuma_cvar) = &*espuma;
     loop {
         if let Ok(mut espuma_mut) =
             espuma_cvar.wait_while(espuma_lock.lock().unwrap(), |cont_espuma| {

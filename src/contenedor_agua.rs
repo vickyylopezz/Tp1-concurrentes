@@ -37,10 +37,10 @@ impl Default for ContenedorAgua {
 
 /// Rellena el contenedor de agua consumiendo el agua de la red
 pub fn rellenar_contenedor_agua(
-    agua_lock: &Mutex<ContenedorAgua>,
-    agua_cvar: &Condvar,
+    agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
     fin_pedidos_agua: Arc<AtomicBool>,
 ) {
+    let (agua_lock, agua_cvar) = &*agua;
     loop {
         if let Ok(mut agua_mut) = agua_cvar.wait_while(agua_lock.lock().unwrap(), |cont_agua| {
             !cont_agua.necesito_agua && !fin_pedidos_agua.load(Ordering::SeqCst)

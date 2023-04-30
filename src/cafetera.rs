@@ -230,14 +230,12 @@ fn rellenar_contenedores(
 
     let fin_pedidos_agua = fin_pedidos.clone();
     let agua_thread = thread::spawn(move || {
-        let (agua_lock, agua_cvar) = &*agua;
-        rellenar_contenedor_agua(agua_lock, agua_cvar, fin_pedidos_agua);
+        rellenar_contenedor_agua(agua, fin_pedidos_agua);
     });
 
     let fin_pedidos_espuma = fin_pedidos.clone();
     let espuma_thread = thread::spawn(move || {
-        let (espuma_lock, espuma_cvar) = &*espuma;
-        rellenar_contenedor_espuma(espuma_lock, espuma_cvar, fin_pedidos_espuma);
+        rellenar_contenedor_espuma(espuma, fin_pedidos_espuma);
     });
 
     let threads = vec![cafe_thread, agua_thread, espuma_thread];
