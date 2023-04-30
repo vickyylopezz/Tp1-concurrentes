@@ -55,6 +55,7 @@ impl Cafetera {
         for id in 0..pedidos.len() {
             let semaforo_clone = self.dispensadores_semaforo.clone();
             let dispensadores_clone = self.dispensadores.clone();
+
             let pedidos_clone = pedidos.clone();
 
             let cafe_pedido = self.contenedor_cafe.clone();
@@ -63,12 +64,22 @@ impl Cafetera {
             let espuma_pedido = self.contenedor_espuma.clone();
 
             let pedidos_com = self.pedidos_completados.clone();
-
             pedidos_handle.push(thread::spawn(move || {
+                let _access = semaforo_clone.access();
+                let mut num_dispensador: i32 = -1;
+                if let Ok(mut dispensadores_mut) = dispensadores_clone.write() {
+                    for i in 0..dispensadores_mut.len() {
+                        if !dispensadores_mut[i] {
+                            num_dispensador = i as i32;
+                            dispensadores_mut[i] = true;
+                            break;
+                        }
+                    }
+                }
+                println!("[Pedido {}] usando dispensador {}", id, num_dispensador);
+
                 if pedido(
                     id as i32,
-                    semaforo_clone,
-                    dispensadores_clone,
                     pedidos_clone[id].clone(),
                     cafe_pedido,
                     agua_pedido,
@@ -80,6 +91,10 @@ impl Cafetera {
                     if let Ok(mut pedidos_compeltos) = pedidos_com.lock() {
                         *pedidos_compeltos += 1;
                     }
+                }
+
+                if let Ok(mut dispensadores_mut) = dispensadores_clone.write() {
+                    dispensadores_mut[num_dispensador as usize] = false;
                 }
             }));
         }
@@ -201,7 +216,11 @@ impl Cafetera {
 }
 
 /// Rellena el contenedor de cafe consumiendo el cafe en granos
-fn rellenar_contenedor_cafe(cafe_lock: &Mutex<ContenedorCafe>, cafe_cvar: &Condvar, fin_pedidos_cafe: Arc<AtomicBool>) {
+fn rellenar_contenedor_cafe(
+    cafe_lock: &Mutex<ContenedorCafe>,
+    cafe_cvar: &Condvar,
+    fin_pedidos_cafe: Arc<AtomicBool>,
+) {
     loop {
         if let Ok(mut cafe_mut) = cafe_cvar.wait_while(cafe_lock.lock().unwrap(), |cont_cafe| {
             !cont_cafe.necesito_cafe && !fin_pedidos_cafe.load(Ordering::SeqCst)
@@ -229,7 +248,7 @@ fn rellenar_contenedor_cafe(cafe_lock: &Mutex<ContenedorCafe>, cafe_cvar: &Condv
                 break;
             }
 
-            if cafe_mut.cafe_granos <= M * X / 100 {
+            if cafe_mut.cafe_granos <= G * X / 100 {
                 println!("Cafe en granos por debajo del {}%", X);
             }
         }
@@ -238,7 +257,11 @@ fn rellenar_contenedor_cafe(cafe_lock: &Mutex<ContenedorCafe>, cafe_cvar: &Condv
 }
 
 /// Rellena el contenedor de agua consumiendo el agua de la red
-fn rellenar_contenedor_agua(agua_lock: &Mutex<ContenedorAgua>, agua_cvar: &Condvar, fin_pedidos_agua: Arc<AtomicBool>){
+fn rellenar_contenedor_agua(
+    agua_lock: &Mutex<ContenedorAgua>,
+    agua_cvar: &Condvar,
+    fin_pedidos_agua: Arc<AtomicBool>,
+) {
     loop {
         if let Ok(mut agua_mut) = agua_cvar.wait_while(agua_lock.lock().unwrap(), |cont_agua| {
             !cont_agua.necesito_agua && !fin_pedidos_agua.load(Ordering::SeqCst)
@@ -257,7 +280,11 @@ fn rellenar_contenedor_agua(agua_lock: &Mutex<ContenedorAgua>, agua_cvar: &Condv
 }
 
 /// Rellena el contenedor de espuma consumiendo el contenedor de leche
-fn rellenar_contenedor_espuma(espuma_lock: &Mutex<ContenedorEspuma>, espuma_cvar: &Condvar, fin_pedidos_espuma: Arc<AtomicBool>) {
+fn rellenar_contenedor_espuma(
+    espuma_lock: &Mutex<ContenedorEspuma>,
+    espuma_cvar: &Condvar,
+    fin_pedidos_espuma: Arc<AtomicBool>,
+) {
     loop {
         if let Ok(mut espuma_mut) =
             espuma_cvar.wait_while(espuma_lock.lock().unwrap(), |cont_espuma| {
@@ -306,21 +333,18 @@ fn rellenar_contenedores(
     let cafe_thread = thread::spawn(move || {
         let (cafe_lock, cafe_cvar) = &*cafe;
         rellenar_contenedor_cafe(cafe_lock, cafe_cvar, fin_pedidos_cafe);
-        println!("Fin thread rellenar cafe");
     });
 
     let fin_pedidos_agua = fin_pedidos.clone();
     let agua_thread = thread::spawn(move || {
         let (agua_lock, agua_cvar) = &*agua;
         rellenar_contenedor_agua(agua_lock, agua_cvar, fin_pedidos_agua);
-        println!("Fin thread rellenar agua");
     });
 
     let fin_pedidos_espuma = fin_pedidos.clone();
     let espuma_thread = thread::spawn(move || {
         let (espuma_lock, espuma_cvar) = &*espuma;
         rellenar_contenedor_espuma(espuma_lock, espuma_cvar, fin_pedidos_espuma);
-        println!("Fin thread rellenar espuma");
     });
 
     let threads = vec![cafe_thread, agua_thread, espuma_thread];
@@ -330,55 +354,86 @@ fn rellenar_contenedores(
 /// Se le asigna un dispensador al pedido y se lo prepara
 fn pedido(
     id: i32,
-    sem: Arc<Semaphore>,
-    dispensadores: Arc<RwLock<Vec<bool>>>,
     pedido: Pedido,
     cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
     agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
     cacao: Arc<Mutex<ContenedorCacao>>,
     espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
 ) -> Result<(), CafeteraError> {
-    let _access = sem.access();
-    let mut num_dispensador: i32 = -1;
-    if let Ok(mut dispensadores_mut) = dispensadores.write() {
-        for i in 0..dispensadores_mut.len() {
-            if !dispensadores_mut[i] {
-                num_dispensador = i as i32;
-                dispensadores_mut[i] = true;
-                break;
-            }
-        }
-    }
-    println!("[Pedido {}] usando dispensador {}", id, num_dispensador);
+    servir_cafe(cafe, pedido.clone(), id)?;
 
-    let (cafe_lock, cafe_cvar) = &*cafe;
-    if let Ok(mut cafe_mut) = cafe_cvar.wait_while(cafe_lock.lock().unwrap(), |cont_cafe| {
-        cont_cafe.necesito_cafe = true;
-        cafe_cvar.notify_all();
-        (cont_cafe.cafe_molido < pedido.cafe_molido) && (cont_cafe.cafe_granos != VACIO)
+    servir_agua(agua, pedido.clone(), id)?;
+
+    servir_cacao(cacao, pedido.clone(), id)?;
+
+    servir_espuma(espuma, pedido, id)?;
+
+    println!("[Pedido {}] terminé", id);
+
+    Ok(())
+}
+
+fn servir_espuma(
+    espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
+    pedido: Pedido,
+    id: i32,
+) -> Result<(), CafeteraError> {
+    let (espuma_lock, espuma_cvar) = &*espuma;
+    if let Ok(mut espuma_mut) = espuma_cvar.wait_while(espuma_lock.lock().unwrap(), |cont_espuma| {
+        cont_espuma.necesito_espuma = true;
+        espuma_cvar.notify_all();
+        cont_espuma.espuma < pedido.espuma && cont_espuma.leche != VACIO
     }) {
-        cafe_mut.necesito_cafe = false;
-        if cafe_mut.cafe_granos == VACIO && cafe_mut.cafe_molido < pedido.cafe_molido {
+        espuma_mut.necesito_espuma = false;
+        if espuma_mut.leche == VACIO && espuma_mut.espuma < pedido.espuma {
             println!(
-                "[Pedido {}] Contenedor de cafe en granos vacio y no me alcanza el cafe molido",
+                "[Pedido {}] Contenedor de leche vacio y no me alcanza la espuma",
                 id
             );
-            cafe_cvar.notify_all();
-            if let Ok(mut dispensadores_mut) = dispensadores.write() {
-                dispensadores_mut[num_dispensador as usize] = false;
-            }
-            return Err(CafeteraError::CafeInsuficiente);
+            espuma_cvar.notify_all();
+            return Err(CafeteraError::EspumaInsuficiente);
         }
-        cafe_mut.cafe_molido_consumido += pedido.cafe_molido;
-        cafe_mut.cafe_molido -= pedido.cafe_molido;
-        println!("[Pedido {}] sirviendo cafe", id);
+        println!("[Pedido {}] sirviendo espuma", id);
+        espuma_mut.espuma_consumida += pedido.espuma;
+        espuma_mut.espuma -= pedido.espuma;
         thread::sleep(Duration::from_millis(
-            TIEMPO_RECURSO_UNIDAD * pedido.cafe_molido as u64,
+            TIEMPO_RECURSO_UNIDAD * pedido.espuma as u64,
         ));
-
-        cafe_cvar.notify_all();
+        espuma_cvar.notify_all();
     }
 
+    Ok(())
+}
+fn servir_cacao(
+    cacao: Arc<Mutex<ContenedorCacao>>,
+    pedido: Pedido,
+    id: i32,
+) -> Result<(), CafeteraError> {
+    if let Ok(mut cacao_mut) = cacao.lock() {
+        if cacao_mut.cacao < pedido.cacao {
+            println!("[Pedido {}] No me alcanza el cacao", id);
+            return Err(CafeteraError::CacaoInsuficiente);
+        }
+
+        println!("[Pedido {}] sirviendo cacao", id);
+        cacao_mut.cacao_consumido += pedido.cacao;
+        cacao_mut.cacao -= pedido.cacao;
+        thread::sleep(Duration::from_millis(
+            TIEMPO_RECURSO_UNIDAD * pedido.cacao as u64,
+        ));
+        if cacao_mut.cacao <= C * X / 100 {
+            println!("Cacao por debajo del {}%", X);
+        }
+    }
+
+    Ok(())
+}
+
+fn servir_agua(
+    agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
+    pedido: Pedido,
+    id: i32,
+) -> Result<(), CafeteraError> {
     let (agua_lock, agua_cvar) = &*agua;
     if let Ok(mut agua_mut) = agua_cvar.wait_while(agua_lock.lock().unwrap(), |cont_agua| {
         cont_agua.necesito_agua = true;
@@ -396,58 +451,37 @@ fn pedido(
         agua_cvar.notify_all();
     }
 
-    if let Ok(mut cacao_mut) = cacao.lock() {
-        if cacao_mut.cacao < pedido.cacao {
-            println!("[Pedido {}] No me alcanza el cacao", id);
-            if let Ok(mut dispensadores_mut) = dispensadores.write() {
-                dispensadores_mut[num_dispensador as usize] = false;
-            }
-            return Err(CafeteraError::CacaoInsuficiente);
-        }
-
-        println!("[Pedido {}] sirviendo cacao", id);
-        cacao_mut.cacao_consumido += pedido.cacao;
-        cacao_mut.cacao -= pedido.cacao;
-        thread::sleep(Duration::from_millis(
-            TIEMPO_RECURSO_UNIDAD * pedido.cacao as u64,
-        ));
-        if cacao_mut.cacao <= C * X / 100 {
-            println!("Cacao por debajo del {}%", X);
-        }
-    }
-
-    let (espuma_lock, espuma_cvar) = &*espuma;
-    if let Ok(mut espuma_mut) = espuma_cvar.wait_while(espuma_lock.lock().unwrap(), |cont_espuma| {
-        cont_espuma.necesito_espuma = true;
-        espuma_cvar.notify_all();
-        cont_espuma.espuma < pedido.espuma && cont_espuma.leche != VACIO
+    Ok(())
+}
+fn servir_cafe(
+    cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
+    pedido: Pedido,
+    id: i32,
+) -> Result<(), CafeteraError> {
+    let (cafe_lock, cafe_cvar) = &*cafe;
+    if let Ok(mut cafe_mut) = cafe_cvar.wait_while(cafe_lock.lock().unwrap(), |cont_cafe| {
+        cont_cafe.necesito_cafe = true;
+        cafe_cvar.notify_all();
+        (cont_cafe.cafe_molido < pedido.cafe_molido) && (cont_cafe.cafe_granos != VACIO)
     }) {
-        espuma_mut.necesito_espuma = false;
-        if espuma_mut.leche == VACIO && espuma_mut.espuma < pedido.espuma {
+        cafe_mut.necesito_cafe = false;
+        if cafe_mut.cafe_granos == VACIO && cafe_mut.cafe_molido < pedido.cafe_molido {
             println!(
-                "[Pedido {}] Contenedor de leche vacio y no me alcanza la espuma",
+                "[Pedido {}] Contenedor de cafe en granos vacio y no me alcanza el cafe molido",
                 id
             );
-            espuma_cvar.notify_all();
-            if let Ok(mut dispensadores_mut) = dispensadores.write() {
-                dispensadores_mut[num_dispensador as usize] = false;
-            }
-            return Err(CafeteraError::EspumaInsuficiente);
+            cafe_cvar.notify_all();
+            return Err(CafeteraError::CafeInsuficiente);
         }
-        println!("[Pedido {}] sirviendo espuma", id);
-        espuma_mut.espuma_consumida += pedido.espuma;
-        espuma_mut.espuma -= pedido.espuma;
+        cafe_mut.cafe_molido_consumido += pedido.cafe_molido;
+        cafe_mut.cafe_molido -= pedido.cafe_molido;
+        println!("[Pedido {}] sirviendo cafe", id);
         thread::sleep(Duration::from_millis(
-            TIEMPO_RECURSO_UNIDAD * pedido.espuma as u64,
+            TIEMPO_RECURSO_UNIDAD * pedido.cafe_molido as u64,
         ));
-        espuma_cvar.notify_all();
-    }
 
-    if let Ok(mut dispensadores_mut) = dispensadores.write() {
-        dispensadores_mut[num_dispensador as usize] = false;
+        cafe_cvar.notify_all();
     }
-
-    println!("[Pedido {}] terminé", id);
 
     Ok(())
 }

@@ -11,7 +11,7 @@ pub const C: i32 = 100;
 /// Capacidad de contenedor de agua
 pub const A: i32 = 400;
 /// Porcentaje a alertar cuando el contenedor esta por debajo
-pub const X: i32 = 30;
+pub const X: i32 = 50;
 /// Capantidad de dispensadores
 pub const N: i32 = 5;
 
