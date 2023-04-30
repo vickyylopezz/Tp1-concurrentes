@@ -7,5 +7,5 @@ pub enum CafeteraError {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum PedidoError {
-   NoHayPedidos
+    NoHayPedidos,
 }

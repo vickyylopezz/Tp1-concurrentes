@@ -3,10 +3,13 @@ use std::{
     io::{self, BufRead, BufReader, Error},
 };
 
-use tp1::{constantes::{
-    MAX_AGUA_POR_PEDIDO, MAX_CACAO_POR_PEDIDO, MAX_CAFE_POR_PEDIDO, MAX_ESPUMA_POR_PEDIDO,
-    MIN_CANTIDAD_POR_PEDIDO,
-}, error::PedidoError};
+use tp1::{
+    constantes::{
+        MAX_AGUA_POR_PEDIDO, MAX_CACAO_POR_PEDIDO, MAX_CAFE_POR_PEDIDO, MAX_ESPUMA_POR_PEDIDO,
+        MIN_CANTIDAD_POR_PEDIDO,
+    },
+    error::PedidoError,
+};
 
 use crate::pedido::Pedido;
 mod pedido;
@@ -159,7 +162,7 @@ fn espuma_invalida(cantidad_espuma: i32, i: usize) -> bool {
 }
 
 /// Transforma cada pedido ingresado a un objeto del tipo Pedido y descarta los pedidos invalidos
-fn pedidos(pedidos_archivo: Vec<Vec<i32>>) -> Result<Vec<Pedido>, PedidoError>{
+fn pedidos(pedidos_archivo: Vec<Vec<i32>>) -> Result<Vec<Pedido>, PedidoError> {
     let mut pedidos = Vec::<Pedido>::new();
     for (i, pedido) in pedidos_archivo.into_iter().enumerate() {
         if cafe_invalido(pedido[0], i)
@@ -187,9 +190,9 @@ fn main() {
     println!("Bienvenido!");
     println!("Ingrese el archivo con el pedido");
     let pedidos_archivo = read_file_lines(leer_por_pantalla()).expect("Failed to read file");
-    if let Ok(pedidos) = pedidos(pedidos_archivo){
+    if let Ok(pedidos) = pedidos(pedidos_archivo) {
         Cafetera::new().preparar_pedidos(pedidos);
-    }    
+    }
 }
 
 #[cfg(test)]
@@ -221,7 +224,11 @@ mod tests {
                 espuma: 3,
             },
         ];
-        for (i, pedido) in pedidos.expect("Error al obtener los pedidos").into_iter().enumerate() {
+        for (i, pedido) in pedidos
+            .expect("Error al obtener los pedidos")
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(pedido, pedidos_expected[i]);
         }
     }
@@ -237,20 +244,27 @@ mod tests {
             cacao: 2,
             espuma: 3,
         }];
-        for (i, pedido) in pedidos.expect("Error al obtener los pedidos").into_iter().enumerate() {
+        for (i, pedido) in pedidos
+            .expect("Error al obtener los pedidos")
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(pedido, pedidos_expected[i]);
         }
     }
 
     #[test]
     fn todos_pedidos_invalidos_test() {
-        let pedidos_archivo = vec![vec![-4, 3, 4, 5], vec![5, -5, 2, 4], vec![4, 5, MAX_CACAO_POR_PEDIDO+1, 3]];
+        let pedidos_archivo = vec![
+            vec![-4, 3, 4, 5],
+            vec![5, -5, 2, 4],
+            vec![4, 5, MAX_CACAO_POR_PEDIDO + 1, 3],
+        ];
         let pedidos = pedidos(pedidos_archivo);
 
         let expected = Err(PedidoError::NoHayPedidos);
-        
+
         assert_eq!(pedidos, expected);
-        
     }
 
     #[test]
