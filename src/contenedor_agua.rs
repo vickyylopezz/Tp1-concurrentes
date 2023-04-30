@@ -57,3 +57,39 @@ pub fn rellenar_contenedor_agua(
         agua_cvar.notify_one();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn relleno_contenedor_agua_test() {
+        // let agua = Arc::new((Mutex::new(ContenedorAgua::new()), Condvar::new()));
+        // let agua_clone = agua.clone();
+        // let agua_contenedor = agua.clone();
+        // let agua_expected = agua.clone();
+
+        // let (agua_lock, _) = &*agua_clone;
+        // if let Ok(mut agua_mut) = agua_lock.lock() {
+        //     agua_mut.necesito_agua = true;
+        //     agua_mut.agua_caliente = 0;
+        // }
+
+        // let fin_pedidos = Arc::new(AtomicBool::new(false));
+        // let fin_pedidos_clone = fin_pedidos.clone();
+        // rellenar_contenedor_agua(agua_contenedor, fin_pedidos_clone);
+        // fin_pedidos.store(true, Ordering::SeqCst);
+
+        // let (agua_expected_lock, agua_expected_cvar) = &*agua_expected;
+        // agua_expected_cvar.notify_all();
+        // if let Ok(agua_mut) = agua_expected_lock.lock() {
+        //     println!("Entre if");
+        //     agua_expected_cvar.notify_all();
+        //     assert_eq!(agua_mut.agua_caliente, A);
+        //     assert_eq!(agua_mut.agua_caliente_consumida, A);
+        //     assert_eq!(agua_mut.necesito_agua, false);
+
+        // };
+
+    }
+}

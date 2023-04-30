@@ -201,7 +201,7 @@ mod tests {
         let pedidos_archivo = vec![vec![2, 3, 4, 5], vec![5, 3, 2, 4], vec![4, 5, 2, 3]];
         let pedidos = pedidos(pedidos_archivo);
 
-        let pedidos_assert = vec![
+        let pedidos_expected = vec![
             Pedido {
                 cafe_molido: 2,
                 agua_caliente: 3,
@@ -222,7 +222,7 @@ mod tests {
             },
         ];
         for (i, pedido) in pedidos.expect("Error al obtener los pedidos").into_iter().enumerate() {
-            assert_eq!(pedido, pedidos_assert[i]);
+            assert_eq!(pedido, pedidos_expected[i]);
         }
     }
 
@@ -231,15 +231,26 @@ mod tests {
         let pedidos_archivo = vec![vec![-4, 3, 4, 5], vec![5, -5, 2, 4], vec![4, 5, 2, 3]];
         let pedidos = pedidos(pedidos_archivo);
 
-        let pedidos_assert = vec![Pedido {
+        let pedidos_expected = vec![Pedido {
             cafe_molido: 4,
             agua_caliente: 5,
             cacao: 2,
             espuma: 3,
         }];
         for (i, pedido) in pedidos.expect("Error al obtener los pedidos").into_iter().enumerate() {
-            assert_eq!(pedido, pedidos_assert[i]);
+            assert_eq!(pedido, pedidos_expected[i]);
         }
+    }
+
+    #[test]
+    fn todos_pedidos_invalidos_test() {
+        let pedidos_archivo = vec![vec![-4, 3, 4, 5], vec![5, -5, 2, 4], vec![4, 5, MAX_CACAO_POR_PEDIDO+1, 3]];
+        let pedidos = pedidos(pedidos_archivo);
+
+        let expected = Err(PedidoError::NoHayPedidos);
+        
+        assert_eq!(pedidos, expected);
+        
     }
 
     #[test]
