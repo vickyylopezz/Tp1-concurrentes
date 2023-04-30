@@ -1,27 +1,27 @@
-///Capacidad de contenedor de granos a moler
+/// Capacidad de contenedor de granos a moler
 pub const G: i32 = 100;
-///Capacidad de contenedor de granos molidos
+/// Capacidad de contenedor de granos molidos
 pub const M: i32 = 30;
-///Capacidad de contenedor de leche
+/// Capacidad de contenedor de leche
 pub const L: i32 = 150;
-///Capacidad de contenedor de espuma
+/// Capacidad de contenedor de espuma
 pub const E: i32 = 100;
-///Capacidad de contenedor de cacao
+/// Capacidad de contenedor de cacao
 pub const C: i32 = 100;
-///Capacidad de contenedor de agua
+/// Capacidad de contenedor de agua
 pub const A: i32 = 400;
-///Porcentaje a alertar cuando el contenedor esta por debajo
+/// Porcentaje a alertar cuando el contenedor esta por debajo
 pub const X: i32 = 30;
-///Capantidad de dispensadores
+/// Capantidad de dispensadores
 pub const N: i32 = 5;
 
-//Tiempo de espera para reponer el contenedor de cafe molido
+/// Tiempo de espera para reponer el contenedor de cafe molido
 pub const TIEMPO_CAFE_REPONER: u64 = 5000;
-//Tiempo de espera para reponer el contenedor de espuma
+/// Tiempo de espera para reponer el contenedor de espuma
 pub const TIEMPO_ESPUMA_REPONER: u64 = 100;
-//Tiempo de espera por unidad de cafe, agua, cacao o espuma del pedido
+/// Tiempo de espera por unidad de cafe, agua, cacao o espuma del pedido
 pub const TIEMPO_RECURSO_UNIDAD: u64 = 50;
-//Tiempo de espera para reponer el contenedor de agua
+/// Tiempo de espera para reponer el contenedor de agua
 pub const TIEMPO_AGUA_REPONER: u64 = 5000;
 
 /// Cantidad maxima de cafe por pedido (siempre debe ser menor a M)

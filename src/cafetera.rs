@@ -200,6 +200,102 @@ impl Cafetera {
     }
 }
 
+/// Rellena el contenedor de cafe consumiendo el cafe en granos
+fn rellenar_contenedor_cafe(cafe_lock: &Mutex<ContenedorCafe>, cafe_cvar: &Condvar, fin_pedidos_cafe: Arc<AtomicBool>) {
+    loop {
+        if let Ok(mut cafe_mut) = cafe_cvar.wait_while(cafe_lock.lock().unwrap(), |cont_cafe| {
+            !cont_cafe.necesito_cafe && !fin_pedidos_cafe.load(Ordering::SeqCst)
+        }) {
+            if fin_pedidos_cafe.load(Ordering::SeqCst) {
+                break;
+            }
+
+            if cafe_mut.cafe_granos >= M {
+                println!("Recargando cafe molido");
+                thread::sleep(Duration::from_millis(TIEMPO_CAFE_REPONER));
+                cafe_mut.cafe_granos -= M - cafe_mut.cafe_molido;
+                cafe_mut.cafe_granos_consumido += M - cafe_mut.cafe_molido;
+                cafe_mut.cafe_molido = M;
+                cafe_mut.necesito_cafe = false;
+            } else {
+                println!("Recargando cafe molido");
+                thread::sleep(Duration::from_millis(TIEMPO_CAFE_REPONER));
+                cafe_mut.cafe_molido += cafe_mut.cafe_granos;
+                cafe_mut.cafe_granos_consumido += cafe_mut.cafe_granos;
+                cafe_mut.cafe_granos = 0;
+                cafe_mut.necesito_cafe = false;
+                println!("Contenedor de cafe en granos vacio");
+                cafe_cvar.notify_all();
+                break;
+            }
+
+            if cafe_mut.cafe_granos <= M * X / 100 {
+                println!("Cafe en granos por debajo del {}%", X);
+            }
+        }
+        cafe_cvar.notify_one();
+    }
+}
+
+/// Rellena el contenedor de agua consumiendo el agua de la red
+fn rellenar_contenedor_agua(agua_lock: &Mutex<ContenedorAgua>, agua_cvar: &Condvar, fin_pedidos_agua: Arc<AtomicBool>){
+    loop {
+        if let Ok(mut agua_mut) = agua_cvar.wait_while(agua_lock.lock().unwrap(), |cont_agua| {
+            !cont_agua.necesito_agua && !fin_pedidos_agua.load(Ordering::SeqCst)
+        }) {
+            if fin_pedidos_agua.load(Ordering::SeqCst) {
+                break;
+            }
+
+            println!("Recargando agua caliente");
+            agua_mut.agua_caliente = A;
+            thread::sleep(Duration::from_millis(TIEMPO_AGUA_REPONER));
+            agua_mut.necesito_agua = false;
+        }
+        agua_cvar.notify_one();
+    }
+}
+
+/// Rellena el contenedor de espuma consumiendo el contenedor de leche
+fn rellenar_contenedor_espuma(espuma_lock: &Mutex<ContenedorEspuma>, espuma_cvar: &Condvar, fin_pedidos_espuma: Arc<AtomicBool>) {
+    loop {
+        if let Ok(mut espuma_mut) =
+            espuma_cvar.wait_while(espuma_lock.lock().unwrap(), |cont_espuma| {
+                !cont_espuma.necesito_espuma && !fin_pedidos_espuma.load(Ordering::SeqCst)
+            })
+        {
+            if fin_pedidos_espuma.load(Ordering::SeqCst) {
+                break;
+            }
+
+            if espuma_mut.leche >= E {
+                println!("Recargando espuma");
+                thread::sleep(Duration::from_millis(TIEMPO_ESPUMA_REPONER));
+                espuma_mut.leche -= E - espuma_mut.espuma;
+                espuma_mut.espuma = E;
+                espuma_mut.leche_consumida += E - espuma_mut.espuma;
+                espuma_mut.necesito_espuma = false;
+            } else {
+                println!("Recargando espuma");
+                thread::sleep(Duration::from_millis(TIEMPO_ESPUMA_REPONER));
+                espuma_mut.espuma += espuma_mut.leche;
+                espuma_mut.leche_consumida += espuma_mut.leche;
+                espuma_mut.leche = 0;
+                espuma_mut.necesito_espuma = false;
+                println!("Contenedor de leche vacio");
+                espuma_cvar.notify_all();
+                break;
+            }
+
+            if espuma_mut.leche <= L * X / 100 {
+                println!("Leche por debajo del {}%", X);
+            }
+        }
+        espuma_cvar.notify_one();
+    }
+}
+
+/// Rellena los contenedores de los recursos necesarios en los pedidos
 fn rellenar_contenedores(
     cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
     agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
@@ -209,101 +305,21 @@ fn rellenar_contenedores(
     let fin_pedidos_cafe = fin_pedidos.clone();
     let cafe_thread = thread::spawn(move || {
         let (cafe_lock, cafe_cvar) = &*cafe;
-        loop {
-            if let Ok(mut cafe_mut) = cafe_cvar.wait_while(cafe_lock.lock().unwrap(), |cont_cafe| {
-                !cont_cafe.necesito_cafe && !fin_pedidos_cafe.load(Ordering::SeqCst)
-            }) {
-                if fin_pedidos_cafe.load(Ordering::SeqCst) {
-                    break;
-                }
-
-                if cafe_mut.cafe_granos >= M {
-                    println!("Recargando cafe molido");
-                    thread::sleep(Duration::from_millis(TIEMPO_CAFE_REPONER));
-                    cafe_mut.cafe_granos -= M - cafe_mut.cafe_molido;
-                    cafe_mut.cafe_granos_consumido += M - cafe_mut.cafe_molido;
-                    cafe_mut.cafe_molido = M;
-                    cafe_mut.necesito_cafe = false;
-                } else {
-                    println!("Recargando cafe molido");
-                    thread::sleep(Duration::from_millis(TIEMPO_CAFE_REPONER));
-                    cafe_mut.cafe_molido += cafe_mut.cafe_granos;
-                    cafe_mut.cafe_granos_consumido += cafe_mut.cafe_granos;
-                    cafe_mut.cafe_granos = 0;
-                    cafe_mut.necesito_cafe = false;
-                    println!("Contenedor de cafe en granos vacio");
-                    cafe_cvar.notify_all();
-                    break;
-                }
-
-                if cafe_mut.cafe_granos <= M * X / 100 {
-                    println!("Cafe en granos por debajo del {}%", X);
-                }
-            }
-            cafe_cvar.notify_one();
-        }
+        rellenar_contenedor_cafe(cafe_lock, cafe_cvar, fin_pedidos_cafe);
         println!("Fin thread rellenar cafe");
     });
 
     let fin_pedidos_agua = fin_pedidos.clone();
     let agua_thread = thread::spawn(move || {
         let (agua_lock, agua_cvar) = &*agua;
-        loop {
-            if let Ok(mut agua_mut) = agua_cvar.wait_while(agua_lock.lock().unwrap(), |cont_agua| {
-                !cont_agua.necesito_agua && !fin_pedidos_agua.load(Ordering::SeqCst)
-            }) {
-                if fin_pedidos_agua.load(Ordering::SeqCst) {
-                    break;
-                }
-
-                println!("Recargando agua caliente");
-                agua_mut.agua_caliente = A;
-                thread::sleep(Duration::from_millis(TIEMPO_AGUA_REPONER));
-                agua_mut.necesito_agua = false;
-            }
-            agua_cvar.notify_one();
-        }
+        rellenar_contenedor_agua(agua_lock, agua_cvar, fin_pedidos_agua);
         println!("Fin thread rellenar agua");
     });
 
     let fin_pedidos_espuma = fin_pedidos.clone();
     let espuma_thread = thread::spawn(move || {
         let (espuma_lock, espuma_cvar) = &*espuma;
-        loop {
-            if let Ok(mut espuma_mut) =
-                espuma_cvar.wait_while(espuma_lock.lock().unwrap(), |cont_espuma| {
-                    !cont_espuma.necesito_espuma && !fin_pedidos_espuma.load(Ordering::SeqCst)
-                })
-            {
-                if fin_pedidos_espuma.load(Ordering::SeqCst) {
-                    break;
-                }
-
-                if espuma_mut.leche >= E {
-                    println!("Recargando espuma");
-                    thread::sleep(Duration::from_millis(TIEMPO_ESPUMA_REPONER));
-                    espuma_mut.leche -= E - espuma_mut.espuma;
-                    espuma_mut.espuma = E;
-                    espuma_mut.leche_consumida += E - espuma_mut.espuma;
-                    espuma_mut.necesito_espuma = false;
-                } else {
-                    println!("Recargando espuma");
-                    thread::sleep(Duration::from_millis(TIEMPO_ESPUMA_REPONER));
-                    espuma_mut.espuma += espuma_mut.leche;
-                    espuma_mut.leche_consumida += espuma_mut.leche;
-                    espuma_mut.leche = 0;
-                    espuma_mut.necesito_espuma = false;
-                    println!("Contenedor de leche vacio");
-                    espuma_cvar.notify_all();
-                    break;
-                }
-
-                if espuma_mut.leche <= L * X / 100 {
-                    println!("Leche por debajo del {}%", X);
-                }
-            }
-            espuma_cvar.notify_one();
-        }
+        rellenar_contenedor_espuma(espuma_lock, espuma_cvar, fin_pedidos_espuma);
         println!("Fin thread rellenar espuma");
     });
 
@@ -339,10 +355,6 @@ fn pedido(
     if let Ok(mut cafe_mut) = cafe_cvar.wait_while(cafe_lock.lock().unwrap(), |cont_cafe| {
         cont_cafe.necesito_cafe = true;
         cafe_cvar.notify_all();
-        println!(
-            "Necesito cafe: {} y tengo {}",
-            pedido.cafe_molido, cont_cafe.cafe_molido
-        );
         (cont_cafe.cafe_molido < pedido.cafe_molido) && (cont_cafe.cafe_granos != VACIO)
     }) {
         cafe_mut.necesito_cafe = false;

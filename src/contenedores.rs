@@ -10,6 +10,7 @@ pub struct ContenedorCafe {
     pub cafe_granos_consumido: i32,
     /// Cantidad de cafe molido consumido
     pub cafe_molido_consumido: i32,
+    /// Indica si es necesario recargar el contenedor de cafe molido
     pub necesito_cafe: bool,
 }
 
@@ -33,10 +34,11 @@ impl Default for ContenedorCafe {
 
 #[derive(Debug)]
 pub struct ContenedorAgua {
-    //Cantidad de agua caliente disponible
+    /// Cantidad de agua caliente disponible
     pub agua_caliente: i32,
-    //Cantidad de agua caliente consumida
+    /// Cantidad de agua caliente consumida
     pub agua_caliente_consumida: i32,
+    /// Indica si es necesario recargar el contenedor de agua
     pub necesito_agua: bool,
 }
 
@@ -58,9 +60,9 @@ impl Default for ContenedorAgua {
 
 #[derive(Debug)]
 pub struct ContenedorCacao {
-    //Cantidad de cacao disponible
+    /// Cantidad de cacao disponible
     pub cacao: i32,
-    //Cantidad de cacao consumido
+    /// Cantidad de cacao consumido
     pub cacao_consumido: i32,
 }
 
@@ -81,14 +83,15 @@ impl Default for ContenedorCacao {
 
 #[derive(Debug)]
 pub struct ContenedorEspuma {
-    //Cantidad de espuma disponible
+    /// Cantidad de espuma disponible
     pub espuma: i32,
-    //Cantidad de leche disponible
+    /// Cantidad de leche disponible
     pub leche: i32,
-    //Cantidad de espuma consumida
+    /// Cantidad de espuma consumida
     pub espuma_consumida: i32,
-    //Cantidad de leche consumida
+    /// Cantidad de leche consumida
     pub leche_consumida: i32,
+    /// Indica si es necesario recargar el contenedor de espuma
     pub necesito_espuma: bool,
 }
 impl ContenedorEspuma {
