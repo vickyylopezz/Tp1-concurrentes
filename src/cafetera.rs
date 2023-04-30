@@ -14,13 +14,21 @@ use tp1::contenedor_espuma::{rellenar_contenedor_espuma, ContenedorEspuma};
 use tp1::error::CafeteraError;
 
 pub struct Cafetera {
+    /// Semaforo de los dispensadores
     dispensadores_semaforo: Arc<Semaphore>,
+    /// Dispensadores libre (false) o en uso (true)
     dispensadores: Arc<RwLock<Vec<bool>>>,
+    /// Contenedor de cafe de la cafetera
     contenedor_cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
+    /// Contenedor de agua de la cafetera
     contenedor_agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
+    /// Contenedor de cacao de la cafetera
     contenedor_cacao: Arc<Mutex<ContenedorCacao>>,
+    /// Contenedor de espuma de la cafetera
     contenedor_espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
+    /// Indica si se terminaron de preparar todos los pedidos
     fin_pedidos: Arc<AtomicBool>,
+    /// Cantidad de pedidos completados
     pedidos_completados: Arc<Mutex<i32>>,
 }
 
@@ -46,7 +54,6 @@ impl Cafetera {
         let cafe = self.contenedor_cafe.clone();
         let agua = self.contenedor_agua.clone();
         let espuma = self.contenedor_espuma.clone();
-
         let thread_rellenar = rellenar_contenedores(cafe, agua, espuma, &self.fin_pedidos);
 
         let pedidos_com = self.pedidos_completados.clone();
@@ -141,6 +148,7 @@ impl Cafetera {
             .expect("Error al hacer join al thread de las estadisticas")
     }
 
+    /// Muestra las estadisticas con los niveles de todos los contenedores, cantidad total de bebidas preparadas y cantidad total de ingredientes consumidos
     fn mostrar_estadisticas(
         &self,
         cant_pedidos_total: usize,
@@ -203,7 +211,7 @@ impl Cafetera {
 
             println!("ESTADITICAS");
             println!("-------------------------------------");
-            println!("Nivel contenedores -> cafe molido: {} de {}, cafe en granos: {} de {}, agua_caliente: {} de {}, cacao: {} de {} ,espuma: {} de {} y leche: {} de {}", cafe_molido, M, cafe_granos, G, agua_caliente, A, cacao, C, espuma, E, leche, L);
+            println!("Nivel contenedores -> cafe molido: {} de {}, cafe en granos: {} de {}, agua caliente: {} de {}, cacao: {} de {} ,espuma: {} de {} y leche: {} de {}", cafe_molido, M, cafe_granos, G, agua_caliente, A, cacao, C, espuma, E, leche, L);
             println!("Consumido -> cafe_molido: {}, cafe granos: {}, agua caliente: {}, cacao: {}, espuma: {} y leche: {}", cafe_molido_consumido, cafe_granos_consumido, agua_caliente_consumida, cacao_consumido, espuma_consumida, leche_consumida);
             println!(
                 "Cantidad de pedidos completados: {} de {}",

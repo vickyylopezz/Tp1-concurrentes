@@ -4,3 +4,8 @@ pub enum CafeteraError {
     CafeInsuficiente,
     EspumaInsuficiente,
 }
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum PedidoError {
+   NoHayPedidos
+}

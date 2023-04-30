@@ -3,10 +3,10 @@ use std::{
     io::{self, BufRead, BufReader, Error},
 };
 
-use tp1::constantes::{
+use tp1::{constantes::{
     MAX_AGUA_POR_PEDIDO, MAX_CACAO_POR_PEDIDO, MAX_CAFE_POR_PEDIDO, MAX_ESPUMA_POR_PEDIDO,
     MIN_CANTIDAD_POR_PEDIDO,
-};
+}, error::PedidoError};
 
 use crate::pedido::Pedido;
 mod pedido;
@@ -159,7 +159,7 @@ fn espuma_invalida(cantidad_espuma: i32, i: usize) -> bool {
 }
 
 /// Transforma cada pedido ingresado a un objeto del tipo Pedido y descarta los pedidos invalidos
-fn pedidos(pedidos_archivo: Vec<Vec<i32>>) -> Vec<Pedido> {
+fn pedidos(pedidos_archivo: Vec<Vec<i32>>) -> Result<Vec<Pedido>, PedidoError>{
     let mut pedidos = Vec::<Pedido>::new();
     for (i, pedido) in pedidos_archivo.into_iter().enumerate() {
         if cafe_invalido(pedido[0], i)
@@ -176,15 +176,20 @@ fn pedidos(pedidos_archivo: Vec<Vec<i32>>) -> Vec<Pedido> {
             espuma: pedido[3],
         })
     }
-    pedidos
+    if pedidos.is_empty() {
+        println!("No hay pedidos para procesar");
+        return Err(PedidoError::NoHayPedidos);
+    }
+    Ok(pedidos)
 }
 
 fn main() {
     println!("Bienvenido!");
     println!("Ingrese el archivo con el pedido");
     let pedidos_archivo = read_file_lines(leer_por_pantalla()).expect("Failed to read file");
-    let pedidos = pedidos(pedidos_archivo);
-    Cafetera::new().preparar_pedidos(pedidos);
+    if let Ok(pedidos) = pedidos(pedidos_archivo){
+        Cafetera::new().preparar_pedidos(pedidos);
+    }    
 }
 
 #[cfg(test)]
@@ -216,7 +221,7 @@ mod tests {
                 espuma: 3,
             },
         ];
-        for (i, pedido) in pedidos.into_iter().enumerate() {
+        for (i, pedido) in pedidos.expect("Error al obtener los pedidos").into_iter().enumerate() {
             assert_eq!(pedido, pedidos_assert[i]);
         }
     }
@@ -232,7 +237,7 @@ mod tests {
             cacao: 2,
             espuma: 3,
         }];
-        for (i, pedido) in pedidos.into_iter().enumerate() {
+        for (i, pedido) in pedidos.expect("Error al obtener los pedidos").into_iter().enumerate() {
             assert_eq!(pedido, pedidos_assert[i]);
         }
     }
