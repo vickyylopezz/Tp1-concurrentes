@@ -112,7 +112,7 @@ mod tests {
             assert_eq!(cafe_mut.cafe_granos_consumido, M);
             assert_eq!(cafe_mut.necesito_cafe, false);
         };
-        thread_cafe.join().unwrap();
+        thread_cafe.join().expect("Error join thread cafe");
     }
 
     #[test]
@@ -142,6 +142,6 @@ mod tests {
             assert_eq!(cafe_mut.cafe_granos_consumido, M - 1);
             assert_eq!(cafe_mut.necesito_cafe, false);
         };
-        thread_cafe.join().unwrap();
+        thread_cafe.join().expect("Error join thread cafe");
     }
 }

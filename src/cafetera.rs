@@ -10,7 +10,6 @@ use tp1::contenedor_agua::{rellenar_contenedor_agua, ContenedorAgua};
 use tp1::contenedor_cacao::ContenedorCacao;
 use tp1::contenedor_cafe::{rellenar_contenedor_cafe, ContenedorCafe};
 use tp1::contenedor_espuma::{rellenar_contenedor_espuma, ContenedorEspuma};
-
 use tp1::error::CafeteraError;
 
 pub struct Cafetera {
@@ -250,7 +249,7 @@ fn rellenar_contenedores(
     Ok(threads)
 }
 
-/// Se le asigna un dispensador al pedido y se lo prepara
+/// Se prepara el pedido sirviendo cada recurso que necesita
 fn pedido(
     id: i32,
     pedido: Pedido,
@@ -389,4 +388,266 @@ fn servir_cafe(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn servir_cafe_con_cafe_disponible_test() {
+        let cafe = Arc::new((Mutex::new(ContenedorCafe::new()), Condvar::new()));
+        let cafe_clone = cafe.clone();
+        let pedido = Pedido {
+            cafe_molido: 3,
+            agua_caliente: 4,
+            cacao: 5,
+            espuma: 6,
+        };
+        let pedido_clone = pedido.clone();
+
+        let thread_cafe = thread::spawn(move || {
+            assert_eq!(servir_cafe(cafe_clone, pedido, 0), Ok(()));
+        });
+
+        let (cafe_lock, cafe_cvar) = &*cafe;
+        if let Ok(cafe_mut) = cafe_cvar.wait(cafe_lock.lock().unwrap()) {
+            assert_eq!(cafe_mut.cafe_molido, M - pedido_clone.cafe_molido);
+            assert_eq!(cafe_mut.cafe_molido_consumido, pedido_clone.cafe_molido);
+            assert_eq!(cafe_mut.cafe_granos, G);
+            assert_eq!(cafe_mut.cafe_granos_consumido, 0);
+            assert_eq!(cafe_mut.necesito_cafe, false);
+        };
+        thread_cafe.join().expect("Error join thread cafe");
+    }
+
+    #[test]
+    fn servir_cafe_con_contenedor_vacio_test() {
+        let cafe = Arc::new((Mutex::new(ContenedorCafe::new()), Condvar::new()));
+        let cafe_clone = cafe.clone();
+        let pedido = Pedido {
+            cafe_molido: 3,
+            agua_caliente: 4,
+            cacao: 5,
+            espuma: 6,
+        };
+        let pedido_clone = pedido.clone();
+
+        let (cafe_lock, cafe_cvar) = &*cafe;
+        if let Ok(mut cafe_mut) = cafe_lock.lock() {
+            cafe_mut.cafe_granos = 0;
+            cafe_mut.cafe_molido = pedido.cafe_molido - 1;
+        }
+
+        let thread_cafe = thread::spawn(move || {
+            assert_eq!(
+                servir_cafe(cafe_clone, pedido, 0),
+                Err(CafeteraError::CafeInsuficiente)
+            );
+        });
+
+        if let Ok(cafe_mut) = cafe_cvar.wait(cafe_lock.lock().unwrap()) {
+            assert_eq!(cafe_mut.cafe_molido, pedido_clone.cafe_molido - 1);
+            assert_eq!(cafe_mut.cafe_molido_consumido, 0);
+            assert_eq!(cafe_mut.cafe_granos, 0);
+            assert_eq!(cafe_mut.cafe_granos_consumido, 0);
+            assert_eq!(cafe_mut.necesito_cafe, false);
+        };
+        thread_cafe.join().expect("Error join thread cafe");
+    }
+
+    #[test]
+    fn servir_agua_test() {
+        let agua = Arc::new((Mutex::new(ContenedorAgua::new()), Condvar::new()));
+        let agua_clone = agua.clone();
+        let pedido = Pedido {
+            cafe_molido: 3,
+            agua_caliente: 4,
+            cacao: 5,
+            espuma: 6,
+        };
+        let pedido_clone = pedido.clone();
+
+        let thread_agua = thread::spawn(move || {
+            assert_eq!(servir_agua(agua_clone, pedido, 0), Ok(()));
+        });
+
+        let (agua_lock, agua_cvar) = &*agua;
+        if let Ok(agua_mut) = agua_cvar.wait(agua_lock.lock().unwrap()) {
+            assert_eq!(agua_mut.agua_caliente, A - pedido_clone.agua_caliente);
+            assert_eq!(agua_mut.agua_caliente_consumida, pedido_clone.agua_caliente);
+            assert_eq!(agua_mut.necesito_agua, false);
+        };
+        thread_agua.join().expect("Error join thread cafe");
+    }
+
+    #[test]
+    fn servir_cacao_con_cacao_disponible_test() {
+        let cacao = Arc::new(Mutex::new(ContenedorCacao::new()));
+        let cacao_clone = cacao.clone();
+        let pedido = Pedido {
+            cafe_molido: 3,
+            agua_caliente: 4,
+            cacao: 5,
+            espuma: 6,
+        };
+        let pedido_clone = pedido.clone();
+
+        assert_eq!(servir_cacao(cacao_clone, pedido, 0), Ok(()));
+
+        if let Ok(cacao_mut) = cacao.lock() {
+            assert_eq!(cacao_mut.cacao, C - pedido_clone.cacao);
+            assert_eq!(cacao_mut.cacao_consumido, pedido_clone.cacao);
+        };
+    }
+
+    #[test]
+    fn servir_cacao_con_contenedor_vacio_test() {
+        let cacao = Arc::new(Mutex::new(ContenedorCacao::new()));
+        let cacao_clone = cacao.clone();
+        let pedido = Pedido {
+            cafe_molido: 3,
+            agua_caliente: 4,
+            cacao: 5,
+            espuma: 6,
+        };
+
+        if let Ok(mut cacao_mut) = cacao.lock() {
+            cacao_mut.cacao = 0;
+        }
+
+        assert_eq!(
+            servir_cacao(cacao_clone, pedido, 0),
+            Err(CafeteraError::CacaoInsuficiente)
+        );
+
+        if let Ok(cacao_mut) = cacao.lock() {
+            assert_eq!(cacao_mut.cacao, 0);
+            assert_eq!(cacao_mut.cacao_consumido, 0);
+        };
+    }
+
+    #[test]
+    fn servir_espuma_con_espuma_disponible_test() {
+        let espuma = Arc::new((Mutex::new(ContenedorEspuma::new()), Condvar::new()));
+        let espuma_clone = espuma.clone();
+        let pedido = Pedido {
+            cafe_molido: 3,
+            agua_caliente: 4,
+            cacao: 5,
+            espuma: 6,
+        };
+        let pedido_clone = pedido.clone();
+
+        let thread_espuma = thread::spawn(move || {
+            assert_eq!(servir_espuma(espuma_clone, pedido, 0), Ok(()));
+        });
+
+        let (espuma_lock, espuma_cvar) = &*espuma;
+        if let Ok(espuma_mut) = espuma_cvar.wait(espuma_lock.lock().unwrap()) {
+            assert_eq!(espuma_mut.espuma, E - pedido_clone.espuma);
+            assert_eq!(espuma_mut.espuma_consumida, pedido_clone.espuma);
+            assert_eq!(espuma_mut.leche, L);
+            assert_eq!(espuma_mut.leche_consumida, 0);
+            assert_eq!(espuma_mut.necesito_espuma, false);
+        };
+        thread_espuma.join().expect("Error join thread cafe");
+    }
+
+    #[test]
+    fn servir_espuma_con_contenedor_vacio_test() {
+        let espuma = Arc::new((Mutex::new(ContenedorEspuma::new()), Condvar::new()));
+        let espuma_clone = espuma.clone();
+        let pedido = Pedido {
+            cafe_molido: 3,
+            agua_caliente: 4,
+            cacao: 5,
+            espuma: 6,
+        };
+        let pedido_clone = pedido.clone();
+
+        let (espuma_lock, espuma_cvar) = &*espuma;
+        if let Ok(mut espuma_mut) = espuma_lock.lock() {
+            espuma_mut.leche = 0;
+            espuma_mut.espuma = pedido.espuma - 1;
+        }
+
+        let thread_espuma = thread::spawn(move || {
+            assert_eq!(
+                servir_espuma(espuma_clone, pedido, 0),
+                Err(CafeteraError::EspumaInsuficiente)
+            );
+        });
+
+        if let Ok(espuma_mut) = espuma_cvar.wait(espuma_lock.lock().unwrap()) {
+            assert_eq!(espuma_mut.espuma, pedido_clone.espuma - 1);
+            assert_eq!(espuma_mut.espuma_consumida, 0);
+            assert_eq!(espuma_mut.leche, 0);
+            assert_eq!(espuma_mut.leche_consumida, 0);
+            assert_eq!(espuma_mut.necesito_espuma, false);
+        };
+        thread_espuma.join().expect("Error join thread cafe");
+    }
+
+    #[test]
+    fn servir_recursos_a_pedido_test() {
+        let cafe = Arc::new((Mutex::new(ContenedorCafe::new()), Condvar::new()));
+        let cafe_clone = cafe.clone();
+        let agua = Arc::new((Mutex::new(ContenedorAgua::new()), Condvar::new()));
+        let agua_clone = agua.clone();
+        let cacao = Arc::new(Mutex::new(ContenedorCacao::new()));
+        let cacao_clone = cacao.clone();
+        let espuma = Arc::new((Mutex::new(ContenedorEspuma::new()), Condvar::new()));
+        let espuma_clone = espuma.clone();
+
+        let pedido_assert = Pedido {
+            cafe_molido: 3,
+            agua_caliente: 4,
+            cacao: 5,
+            espuma: 6,
+        };
+        let pedido_clone = pedido_assert.clone();
+
+        assert_eq!(
+            pedido(
+                0,
+                pedido_assert,
+                cafe_clone,
+                agua_clone,
+                cacao_clone,
+                espuma_clone
+            ),
+            Ok(())
+        );
+
+        let (cafe_lock, _) = &*cafe;
+        if let Ok(cafe_mut) = cafe_lock.lock() {
+            assert_eq!(cafe_mut.cafe_molido, M - pedido_clone.cafe_molido);
+            assert_eq!(cafe_mut.cafe_molido_consumido, pedido_clone.cafe_molido);
+            assert_eq!(cafe_mut.cafe_granos, G);
+            assert_eq!(cafe_mut.cafe_granos_consumido, 0);
+            assert_eq!(cafe_mut.necesito_cafe, false);
+        }
+
+        let (agua_lock, _) = &*agua;
+        if let Ok(agua_mut) = agua_lock.lock() {
+            assert_eq!(agua_mut.agua_caliente, A - pedido_clone.agua_caliente);
+            assert_eq!(agua_mut.agua_caliente_consumida, pedido_clone.agua_caliente);
+            assert_eq!(agua_mut.necesito_agua, false);
+        }
+
+        if let Ok(cacao_mut) = cacao.lock() {
+            assert_eq!(cacao_mut.cacao, C - pedido_clone.cacao);
+            assert_eq!(cacao_mut.cacao_consumido, pedido_clone.cacao);
+        }
+
+        let (espuma_lock, _) = &*espuma;
+        if let Ok(espuma_mut) = espuma_lock.lock() {
+            assert_eq!(espuma_mut.espuma, E - pedido_clone.espuma);
+            assert_eq!(espuma_mut.espuma_consumida, pedido_clone.espuma);
+            assert_eq!(espuma_mut.leche, L);
+            assert_eq!(espuma_mut.leche_consumida, 0);
+            assert_eq!(espuma_mut.necesito_espuma, false);
+        };
+    }
 }

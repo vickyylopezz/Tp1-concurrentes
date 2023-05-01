@@ -85,6 +85,6 @@ mod tests {
             assert_eq!(agua_mut.agua_caliente, A);
             assert_eq!(agua_mut.necesito_agua, false);
         };
-        thread_agua.join().unwrap();
+        thread_agua.join().expect("Error join thread agua");
     }
 }

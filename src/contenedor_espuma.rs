@@ -113,7 +113,7 @@ mod tests {
             assert_eq!(espuma_mut.leche_consumida, E);
             assert_eq!(espuma_mut.necesito_espuma, false);
         };
-        thread_espuma.join().unwrap();
+        thread_espuma.join().expect("Error join thread espuma");
     }
 
     #[test]
@@ -143,6 +143,6 @@ mod tests {
             assert_eq!(espuma_mut.leche_consumida, E - 1);
             assert_eq!(espuma_mut.necesito_espuma, false);
         };
-        thread_espuma.join().unwrap();
+        thread_espuma.join().expect("Error join thread espuma");
     }
 }
