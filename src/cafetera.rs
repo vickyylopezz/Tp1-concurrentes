@@ -650,4 +650,74 @@ mod tests {
             assert_eq!(espuma_mut.necesito_espuma, false);
         };
     }
+
+    #[test]
+    fn rellenar_contenedores_test(){
+        let cafe = Arc::new((Mutex::new(ContenedorCafe::new()), Condvar::new()));
+        let cafe_clone = cafe.clone();
+        let agua = Arc::new((Mutex::new(ContenedorAgua::new()), Condvar::new()));
+        let agua_clone = agua.clone();
+        let espuma = Arc::new((Mutex::new(ContenedorEspuma::new()), Condvar::new()));
+        let espuma_clone = espuma.clone();
+        let fin_pedidos = Arc::new(AtomicBool::new(false));
+        let fin_pedidos_clone = fin_pedidos.clone();
+        
+        let (cafe_lock, cafe_cvar) = &*cafe;
+        if let Ok(mut cafe_mut) = cafe_lock.lock() {
+            cafe_mut.cafe_molido = 0;
+            cafe_mut.necesito_cafe = true;
+        }
+
+        let (agua_lock, agua_cvar) = &*agua;
+        if let Ok(mut agua_mut) = agua_lock.lock() {
+            agua_mut.agua_caliente = 0;
+            agua_mut.necesito_agua = true;
+        }
+
+        let (espuma_lock, espuma_cvar) = &*espuma;
+        if let Ok(mut espuma_mut) = espuma_lock.lock() {
+            espuma_mut.necesito_espuma = true;
+            espuma_mut.espuma = 0;
+        }
+
+        let thread_rellenar = rellenar_contenedores(cafe_clone, agua_clone, espuma_clone, &fin_pedidos_clone);
+
+        if let Ok(cafe_mut) = cafe_cvar.wait(cafe_lock.lock().unwrap()) {
+            fin_pedidos.store(true, Ordering::SeqCst);
+            cafe_cvar.notify_all();
+            assert_eq!(cafe_mut.cafe_molido, M);
+            assert_eq!(cafe_mut.cafe_granos, G - M);
+            assert_eq!(cafe_mut.cafe_granos_consumido, M);
+            assert_eq!(cafe_mut.necesito_cafe, false);
+        }
+
+        if let Ok(agua_mut) = agua_lock.lock() {
+            fin_pedidos.store(true, Ordering::SeqCst);
+            agua_cvar.notify_all();
+            assert_eq!(agua_mut.agua_caliente, A);
+            assert_eq!(agua_mut.necesito_agua, false);
+        }
+
+        if let Ok(espuma_mut) = espuma_lock.lock() {
+            fin_pedidos.store(true, Ordering::SeqCst);
+            espuma_cvar.notify_all();
+            assert_eq!(espuma_mut.espuma, E);
+            assert_eq!(espuma_mut.leche, L - E);
+            assert_eq!(espuma_mut.leche_consumida, E);
+            assert_eq!(espuma_mut.necesito_espuma, false);
+        }
+
+
+        if let Ok(contenedores) = thread_rellenar {
+            for contenedor in contenedores {
+                contenedor
+                    .join()
+                    .expect("Error al hacer join al thread de rellenar recurso")
+            }
+        }
+        
+    }
+
+        
+
 }
