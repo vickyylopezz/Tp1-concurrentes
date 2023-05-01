@@ -20,17 +20,17 @@ pub struct Cafetera {
     /// Dispensadores libre (false) o en uso (true)
     dispensadores: Arc<RwLock<Vec<bool>>>,
     /// Contenedor de cafe de la cafetera
-    contenedor_cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
+    pub contenedor_cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
     /// Contenedor de agua de la cafetera
-    contenedor_agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
+    pub contenedor_agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
     /// Contenedor de cacao de la cafetera
-    contenedor_cacao: Arc<Mutex<ContenedorCacao>>,
+    pub contenedor_cacao: Arc<Mutex<ContenedorCacao>>,
     /// Contenedor de espuma de la cafetera
-    contenedor_espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
+    pub contenedor_espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
     /// Indica si se terminaron de preparar todos los pedidos
-    fin_pedidos: Arc<AtomicBool>,
+    pub fin_pedidos: Arc<AtomicBool>,
     /// Cantidad de pedidos completados
-    pedidos_completados: Arc<Mutex<i32>>,
+    pub pedidos_completados: Arc<Mutex<i32>>,
 }
 
 impl Cafetera {
