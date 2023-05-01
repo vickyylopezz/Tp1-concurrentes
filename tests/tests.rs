@@ -82,14 +82,13 @@ mod tests {
         let mut agua_total = 0;
         let mut cacao_total = 0;
         let mut espuma_total = 0;
-        for pedido in pedidos {
+        for pedido in pedidos.clone() {
             cafe_total += pedido.cafe_molido;
             agua_total += pedido.agua_caliente;
             cacao_total += pedido.cacao;
             espuma_total += pedido.espuma;
         }
 
-        println!("Cafe total:{}", cafe_total);
         if let Ok(cont_cafe) = cafetera.contenedor_cafe.0.lock() {
             assert_eq!(cont_cafe.cafe_molido, M-(cafe_total-cont_cafe.cafe_granos_consumido));
             assert_eq!(cont_cafe.cafe_granos, G-(cafe_total-(M-cont_cafe.cafe_molido)));
@@ -97,24 +96,25 @@ mod tests {
             assert_eq!(cont_cafe.cafe_granos_consumido, cont_cafe.cafe_molido_consumido+cont_cafe.cafe_molido-M)
         }
  
-        println!("Agua total:{}", agua_total);
         if let Ok(cont_agua) = cafetera.contenedor_agua.0.lock() {
             assert_eq!(cont_agua.agua_caliente_consumida, agua_total);
         }
 
-        println!("Cacao total:{}", cacao_total);
         if let Ok(cont_cacao) = cafetera.contenedor_cacao.lock() {
             assert_eq!(cont_cacao.cacao, C-cacao_total);
             assert_eq!(cont_cacao.cacao_consumido, cacao_total);
         }
         
-        println!("Espuma total:{}", espuma_total);
         if let Ok(cont_espuma) = cafetera.contenedor_espuma.0.lock() {
             assert_eq!(cont_espuma.espuma, E-(espuma_total-cont_espuma.leche_consumida));
             assert_eq!(cont_espuma.espuma_consumida, espuma_total);
             assert_eq!(cont_espuma.leche, L-(espuma_total-(E-cont_espuma.espuma)));
             assert_eq!(cont_espuma.leche_consumida, cont_espuma.espuma_consumida+cont_espuma.espuma-E);
         }
+
+        assert_eq!(*cafetera.pedidos_completados.lock().expect("Error en pedidos"), pedidos.len() as i32)
+
+
         
     }
 }

@@ -49,7 +49,6 @@ impl Cafetera {
 
     /// Prepara los pedidos recibidos
     pub fn preparar_pedidos(&self, pedidos: Vec<Pedido>) {
-        println!("{:?}", pedidos);
         let mut pedidos_handle = vec![];
 
         let cafe = self.contenedor_cafe.clone();
@@ -209,16 +208,7 @@ impl Cafetera {
             if let Ok(pedidos_compeltos) = cant_pedidos.lock() {
                 pedidos_completados = *pedidos_compeltos;
             }
-
-            println!("ESTADITICAS");
-            println!("-------------------------------------");
-            println!("Nivel contenedores -> cafe molido: {} de {}, cafe en granos: {} de {}, agua caliente: {} de {}, cacao: {} de {} ,espuma: {} de {} y leche: {} de {}", cafe_molido, M, cafe_granos, G, agua_caliente, A, cacao, C, espuma, E, leche, L);
-            println!("Consumido -> cafe_molido: {}, cafe granos: {}, agua caliente: {}, cacao: {}, espuma: {} y leche: {}", cafe_molido_consumido, cafe_granos_consumido, agua_caliente_consumida, cacao_consumido, espuma_consumida, leche_consumida);
-            println!(
-                "Cantidad de pedidos completados: {} de {}",
-                pedidos_completados, cant_pedidos_total
-            );
-            println!("-------------------------------------");
+            println!("ESTADITICAS\n-------------------------------------\nNivel contenedores -> cafe molido: {} de {}, cafe en granos: {} de {}, agua caliente: {} de {}, cacao: {} de {} ,espuma: {} de {} y leche: {} de {}\nConsumido -> cafe_molido: {}, cafe granos: {}, agua caliente: {}, cacao: {}, espuma: {} y leche: {}\nCantidad de pedidos completados: {} de {}\n-------------------------------------", cafe_molido, M, cafe_granos, G, agua_caliente, A, cacao, C, espuma, E, leche, L,cafe_molido_consumido, cafe_granos_consumido, agua_caliente_consumida, cacao_consumido, espuma_consumida, leche_consumida, pedidos_completados, cant_pedidos_total);
 
             thread::sleep(Duration::from_millis(MOSTRAR_ESTADISTICAS));
         })
