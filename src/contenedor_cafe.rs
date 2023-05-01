@@ -81,3 +81,67 @@ pub fn rellenar_contenedor_cafe(
         cafe_cvar.notify_one();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn relleno_contenedor_cafe_test() {
+        let cafe = Arc::new((Mutex::new(ContenedorCafe::new()), Condvar::new()));
+        let cafe_clone = cafe.clone();
+
+        let (cafe_lock, cafe_cvar) = &*cafe;
+        if let Ok(mut cafe_mut) = cafe_lock.lock() {
+            cafe_mut.necesito_cafe = true;
+            cafe_mut.cafe_molido = 0;
+        }
+
+        let fin_pedidos = Arc::new(AtomicBool::new(false));
+        let fin_pedidos_clone = fin_pedidos.clone();
+
+        let thread_cafe = thread::spawn(move || {
+            rellenar_contenedor_cafe(cafe_clone, fin_pedidos_clone);
+        });
+
+        if let Ok(cafe_mut) = cafe_cvar.wait(cafe_lock.lock().unwrap()) {
+            fin_pedidos.store(true, Ordering::SeqCst);
+            cafe_cvar.notify_all();
+            assert_eq!(cafe_mut.cafe_molido, M);
+            assert_eq!(cafe_mut.cafe_granos, G - M);
+            assert_eq!(cafe_mut.cafe_granos_consumido, M);
+            assert_eq!(cafe_mut.necesito_cafe, false);
+        };
+        thread_cafe.join().unwrap();
+    }
+
+    #[test]
+    fn relleno_contenedor_cafe_poco_cafe_granos_test() {
+        let cafe = Arc::new((Mutex::new(ContenedorCafe::new()), Condvar::new()));
+        let cafe_clone = cafe.clone();
+
+        let (cafe_lock, cafe_cvar) = &*cafe;
+        if let Ok(mut cafe_mut) = cafe_lock.lock() {
+            cafe_mut.necesito_cafe = true;
+            cafe_mut.cafe_molido = 0;
+            cafe_mut.cafe_granos = M - 1;
+        }
+
+        let fin_pedidos = Arc::new(AtomicBool::new(false));
+        let fin_pedidos_clone = fin_pedidos.clone();
+
+        let thread_cafe = thread::spawn(move || {
+            rellenar_contenedor_cafe(cafe_clone, fin_pedidos_clone);
+        });
+
+        if let Ok(cafe_mut) = cafe_cvar.wait(cafe_lock.lock().unwrap()) {
+            fin_pedidos.store(true, Ordering::SeqCst);
+            cafe_cvar.notify_all();
+            assert_eq!(cafe_mut.cafe_molido, M - 1);
+            assert_eq!(cafe_mut.cafe_granos, 0);
+            assert_eq!(cafe_mut.cafe_granos_consumido, M - 1);
+            assert_eq!(cafe_mut.necesito_cafe, false);
+        };
+        thread_cafe.join().unwrap();
+    }
+}

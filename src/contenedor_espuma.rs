@@ -60,8 +60,8 @@ pub fn rellenar_contenedor_espuma(
                 println!("Recargando espuma");
                 thread::sleep(Duration::from_millis(TIEMPO_ESPUMA_REPONER));
                 espuma_mut.leche -= E - espuma_mut.espuma;
-                espuma_mut.espuma = E;
                 espuma_mut.leche_consumida += E - espuma_mut.espuma;
+                espuma_mut.espuma = E;
                 espuma_mut.necesito_espuma = false;
             } else {
                 println!("Recargando espuma");
@@ -80,5 +80,69 @@ pub fn rellenar_contenedor_espuma(
             }
         }
         espuma_cvar.notify_one();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn relleno_contenedor_espuma_test() {
+        let espuma = Arc::new((Mutex::new(ContenedorEspuma::new()), Condvar::new()));
+        let espuma_clone = espuma.clone();
+
+        let (espuma_lock, espuma_cvar) = &*espuma;
+        if let Ok(mut espuma_mut) = espuma_lock.lock() {
+            espuma_mut.necesito_espuma = true;
+            espuma_mut.espuma = 0;
+        }
+
+        let fin_pedidos = Arc::new(AtomicBool::new(false));
+        let fin_pedidos_clone = fin_pedidos.clone();
+
+        let thread_espuma = thread::spawn(move || {
+            rellenar_contenedor_espuma(espuma_clone, fin_pedidos_clone);
+        });
+
+        if let Ok(espuma_mut) = espuma_cvar.wait(espuma_lock.lock().unwrap()) {
+            fin_pedidos.store(true, Ordering::SeqCst);
+            espuma_cvar.notify_all();
+            assert_eq!(espuma_mut.espuma, E);
+            assert_eq!(espuma_mut.leche, L - E);
+            assert_eq!(espuma_mut.leche_consumida, E);
+            assert_eq!(espuma_mut.necesito_espuma, false);
+        };
+        thread_espuma.join().unwrap();
+    }
+
+    #[test]
+    fn relleno_contenedor_espuma_poca_leche_test() {
+        let espuma = Arc::new((Mutex::new(ContenedorEspuma::new()), Condvar::new()));
+        let espuma_clone = espuma.clone();
+
+        let (espuma_lock, espuma_cvar) = &*espuma;
+        if let Ok(mut espuma_mut) = espuma_lock.lock() {
+            espuma_mut.necesito_espuma = true;
+            espuma_mut.espuma = 0;
+            espuma_mut.leche = E - 1;
+        }
+
+        let fin_pedidos = Arc::new(AtomicBool::new(false));
+        let fin_pedidos_clone = fin_pedidos.clone();
+
+        let thread_espuma = thread::spawn(move || {
+            rellenar_contenedor_espuma(espuma_clone, fin_pedidos_clone);
+        });
+
+        if let Ok(espuma_mut) = espuma_cvar.wait(espuma_lock.lock().unwrap()) {
+            fin_pedidos.store(true, Ordering::SeqCst);
+            espuma_cvar.notify_all();
+            assert_eq!(espuma_mut.espuma, E - 1);
+            assert_eq!(espuma_mut.leche, 0);
+            assert_eq!(espuma_mut.leche_consumida, E - 1);
+            assert_eq!(espuma_mut.necesito_espuma, false);
+        };
+        thread_espuma.join().unwrap();
     }
 }
