@@ -9,3 +9,8 @@ pub enum CafeteraError {
 pub enum PedidoError {
     NoHayPedidos,
 }
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum FileError {
+    ArchivoInexistente,
+}

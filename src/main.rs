@@ -1,203 +1,163 @@
-use std::{
-    fs::File,
-    io::{self, BufRead, BufReader, Error},
-};
+use tp1::cafetera::Cafetera;
+use tp1::{archivo::leer_por_pantalla, archivo::read_file_lines};
 
-use tp1::{
-    constantes::{
-        MAX_AGUA_POR_PEDIDO, MAX_CACAO_POR_PEDIDO, MAX_CAFE_POR_PEDIDO, MAX_ESPUMA_POR_PEDIDO,
-        MIN_CANTIDAD_POR_PEDIDO,
-    },
-    error::PedidoError,
-};
+use tp1::chequeo_pedidos::pedidos;
 
-use crate::pedido::Pedido;
-mod pedido;
-use crate::cafetera::Cafetera;
-mod cafetera;
+// pub mod chequeo_pedidos {
+//     use tp1::{
+//         constantes::{
+//             MAX_AGUA_POR_PEDIDO, MAX_CACAO_POR_PEDIDO, MAX_CAFE_POR_PEDIDO, MAX_ESPUMA_POR_PEDIDO,
+//             MIN_CANTIDAD_POR_PEDIDO,
+//         },
+//         error::PedidoError,
+//         pedido::Pedido,
+//     };
 
-/// Abre el archivo del path recibido por parametro y si falla vuelve a pedirlo.
-/// Ejemplo:
-/// ```rust
-/// abrir_archivo(nombreArchivo);
-/// ```
-fn abrir_archivo(path: String) -> File {
-    match File::open(path) {
-        Ok(it) => it,
-        Err(_) => {
-            println!("Nombre de archivo incorrecto. Por favor vuelva a ingresarlo:");
-            abrir_archivo(leer_por_pantalla())
-        }
-    }
-}
+//     /// Chequea que la cantidad de cafe del pedido sea valida y se encuentre dentro del minimo y del maximo permitido
+//     /// Ejemplo:
+//     /// ```rust
+//     /// cafe_invalido(cant_cafe_del_pedido,id_del_pedido);
+//     /// ```
+//     pub fn cafe_invalido(cantidad_cafe: i32, i: usize) -> bool {
+//         if !(MIN_CANTIDAD_POR_PEDIDO..=MAX_CAFE_POR_PEDIDO).contains(&cantidad_cafe) {
+//             if cantidad_cafe > MAX_CAFE_POR_PEDIDO {
+//                 println!(
+//                     "La cantidad maxima de cafe por pedido es {}, pedido {} descartado",
+//                     MAX_CAFE_POR_PEDIDO, i
+//                 );
+//                 return true;
+//             } else {
+//                 println!(
+//                     "La cantidad minima de cafe por pedido es {}, pedido {} descartado",
+//                     MIN_CANTIDAD_POR_PEDIDO, i
+//                 );
+//                 return true;
+//             }
+//         }
+//         false
+//     }
 
-/// Lee las lineas del archivo recibido por parametro, las guarda en un vector y lo devuelve.
-/// Ejemplo:
-/// ```rust
-/// read_file_lines(nombreArchivo);
-/// ```
-fn read_file_lines(path: String) -> Result<Vec<Vec<i32>>, Error> {
-    let mut vector = Vec::new();
-    let reader = BufReader::new(abrir_archivo(path));
-    for line in reader.lines() {
-        let pedido: Vec<i32> = line?
-            .split(',')
-            .map(|x| x.parse().expect("Failed to read file"))
-            .collect();
-        vector.push(pedido);
-    }
+//     /// Chequea que la cantidad de agua del pedido sea valida y se encuentre dentro del minimo y del maximo permitido
+//     /// Ejemplo:
+//     /// ```rust
+//     /// agua_invalida(cant_agua_del_pedido,id_del_pedido);
+//     /// ```
+//     pub fn agua_invalida(cantidad_agua: i32, i: usize) -> bool {
+//         if !(MIN_CANTIDAD_POR_PEDIDO..=MAX_AGUA_POR_PEDIDO).contains(&cantidad_agua) {
+//             if cantidad_agua > MAX_AGUA_POR_PEDIDO {
+//                 println!(
+//                     "La cantidad maxima de agua por pedido es {}, pedido {} descartado",
+//                     MAX_AGUA_POR_PEDIDO, i
+//                 );
+//                 return true;
+//             } else {
+//                 println!(
+//                     "La cantidad minima de agua por pedido es {}, pedido {} descartado",
+//                     MIN_CANTIDAD_POR_PEDIDO, i
+//                 );
+//                 return true;
+//             }
+//         }
+//         false
+//     }
 
-    Ok(vector)
-}
+//     /// Chequea que la cantidad de cacao del pedido sea valida y se encuentre dentro del minimo y del maximo permitido
+//     /// Ejemplo:
+//     /// ```rust
+//     /// cacao_invalido(cant_cacao_del_pedido,id_del_pedido);
+//     /// ```
+//     pub fn cacao_invalido(cantidad_cacao: i32, i: usize) -> bool {
+//         if !(MIN_CANTIDAD_POR_PEDIDO..=MAX_CACAO_POR_PEDIDO).contains(&cantidad_cacao) {
+//             if cantidad_cacao > MAX_CACAO_POR_PEDIDO {
+//                 println!(
+//                     "La cantidad maxima de cacao por pedido es {}, pedido {} descartado",
+//                     MAX_CACAO_POR_PEDIDO, i
+//                 );
+//                 return true;
+//             } else {
+//                 println!(
+//                     "La cantidad minima de cacao por pedido es {}, pedido {} descartado",
+//                     MIN_CANTIDAD_POR_PEDIDO, i
+//                 );
+//                 return true;
+//             }
+//         }
+//         false
+//     }
 
-/// Lee por pantalla, guarda lo leido en una variable y la devuelve.
-/// Ejemplo:
-/// ```rust
-/// leer_por_pantall();
-/// ```
-fn leer_por_pantalla() -> String {
-    let mut archivo_ingresado = String::new();
+//     /// Chequea que la cantidad de espuma del pedido sea valida y se encuentre dentro del minimo y del maximo permitido
+//     /// Ejemplo:
+//     /// ```rust
+//     /// espuma_invalido(cant_espuma_del_pedido,id_del_pedido);
+//     /// ```
+//     pub fn espuma_invalida(cantidad_espuma: i32, i: usize) -> bool {
+//         if !(MIN_CANTIDAD_POR_PEDIDO..=MAX_ESPUMA_POR_PEDIDO).contains(&cantidad_espuma) {
+//             if cantidad_espuma > MAX_ESPUMA_POR_PEDIDO {
+//                 println!(
+//                     "La cantidad maxima de espuma por pedido es {}, pedido {} descartado",
+//                     MAX_ESPUMA_POR_PEDIDO, i
+//                 );
+//                 return true;
+//             } else {
+//                 println!(
+//                     "La cantidad minima de espuma por pedido es {}, pedido {} descartado",
+//                     MIN_CANTIDAD_POR_PEDIDO, i
+//                 );
+//                 return true;
+//             }
+//         }
+//         false
+//     }
 
-    io::stdin()
-        .read_line(&mut archivo_ingresado)
-        .expect("Failed to read line");
-
-    archivo_ingresado.trim().to_string()
-}
-
-/// Chequea que la cantidad de cafe del pedido sea valida y se encuentre dentro del minimo y del maximo permitido
-/// Ejemplo:
-/// ```rust
-/// cafe_invalido(cant_cafe_del_pedido,id_del_pedido);
-/// ```
-fn cafe_invalido(cantidad_cafe: i32, i: usize) -> bool {
-    if !(MIN_CANTIDAD_POR_PEDIDO..=MAX_CAFE_POR_PEDIDO).contains(&cantidad_cafe) {
-        if cantidad_cafe > MAX_CAFE_POR_PEDIDO {
-            println!(
-                "La cantidad maxima de cafe por pedido es {}, pedido {} descartado",
-                MAX_CAFE_POR_PEDIDO, i
-            );
-            return true;
-        } else {
-            println!(
-                "La cantidad minima de cafe por pedido es {}, pedido {} descartado",
-                MIN_CANTIDAD_POR_PEDIDO, i
-            );
-            return true;
-        }
-    }
-    false
-}
-
-/// Chequea que la cantidad de agua del pedido sea valida y se encuentre dentro del minimo y del maximo permitido
-/// Ejemplo:
-/// ```rust
-/// agua_invalida(cant_agua_del_pedido,id_del_pedido);
-/// ```
-fn agua_invalida(cantidad_agua: i32, i: usize) -> bool {
-    if !(MIN_CANTIDAD_POR_PEDIDO..=MAX_AGUA_POR_PEDIDO).contains(&cantidad_agua) {
-        if cantidad_agua > MAX_AGUA_POR_PEDIDO {
-            println!(
-                "La cantidad maxima de agua por pedido es {}, pedido {} descartado",
-                MAX_AGUA_POR_PEDIDO, i
-            );
-            return true;
-        } else {
-            println!(
-                "La cantidad minima de agua por pedido es {}, pedido {} descartado",
-                MIN_CANTIDAD_POR_PEDIDO, i
-            );
-            return true;
-        }
-    }
-    false
-}
-
-/// Chequea que la cantidad de cacao del pedido sea valida y se encuentre dentro del minimo y del maximo permitido
-/// Ejemplo:
-/// ```rust
-/// cacao_invalido(cant_cacao_del_pedido,id_del_pedido);
-/// ```
-fn cacao_invalido(cantidad_cacao: i32, i: usize) -> bool {
-    if !(MIN_CANTIDAD_POR_PEDIDO..=MAX_CACAO_POR_PEDIDO).contains(&cantidad_cacao) {
-        if cantidad_cacao > MAX_CACAO_POR_PEDIDO {
-            println!(
-                "La cantidad maxima de cacao por pedido es {}, pedido {} descartado",
-                MAX_CACAO_POR_PEDIDO, i
-            );
-            return true;
-        } else {
-            println!(
-                "La cantidad minima de cacao por pedido es {}, pedido {} descartado",
-                MIN_CANTIDAD_POR_PEDIDO, i
-            );
-            return true;
-        }
-    }
-    false
-}
-
-/// Chequea que la cantidad de espuma del pedido sea valida y se encuentre dentro del minimo y del maximo permitido
-/// Ejemplo:
-/// ```rust
-/// espuma_invalido(cant_espuma_del_pedido,id_del_pedido);
-/// ```
-fn espuma_invalida(cantidad_espuma: i32, i: usize) -> bool {
-    if !(MIN_CANTIDAD_POR_PEDIDO..=MAX_ESPUMA_POR_PEDIDO).contains(&cantidad_espuma) {
-        if cantidad_espuma > MAX_ESPUMA_POR_PEDIDO {
-            println!(
-                "La cantidad maxima de espuma por pedido es {}, pedido {} descartado",
-                MAX_ESPUMA_POR_PEDIDO, i
-            );
-            return true;
-        } else {
-            println!(
-                "La cantidad minima de espuma por pedido es {}, pedido {} descartado",
-                MIN_CANTIDAD_POR_PEDIDO, i
-            );
-            return true;
-        }
-    }
-    false
-}
-
-/// Transforma cada pedido ingresado a un objeto del tipo Pedido y descarta los pedidos invalidos
-fn pedidos(pedidos_archivo: Vec<Vec<i32>>) -> Result<Vec<Pedido>, PedidoError> {
-    let mut pedidos = Vec::<Pedido>::new();
-    for (i, pedido) in pedidos_archivo.into_iter().enumerate() {
-        if cafe_invalido(pedido[0], i)
-            || agua_invalida(pedido[1], i)
-            || cacao_invalido(pedido[2], i)
-            || espuma_invalida(pedido[3], i)
-        {
-            continue;
-        }
-        pedidos.push(Pedido {
-            cafe_molido: pedido[0],
-            agua_caliente: pedido[1],
-            cacao: pedido[2],
-            espuma: pedido[3],
-        })
-    }
-    if pedidos.is_empty() {
-        println!("No hay pedidos para procesar");
-        return Err(PedidoError::NoHayPedidos);
-    }
-    Ok(pedidos)
-}
+//     /// Transforma cada pedido ingresado a un objeto del tipo Pedido y descarta los pedidos invalidos
+//     pub fn pedidos(pedidos_archivo: Vec<Vec<i32>>) -> Result<Vec<Pedido>, PedidoError> {
+//         let mut pedidos = Vec::<Pedido>::new();
+//         for (i, pedido) in pedidos_archivo.into_iter().enumerate() {
+//             if cafe_invalido(pedido[0], i)
+//                 || agua_invalida(pedido[1], i)
+//                 || cacao_invalido(pedido[2], i)
+//                 || espuma_invalida(pedido[3], i)
+//             {
+//                 continue;
+//             }
+//             pedidos.push(Pedido {
+//                 cafe_molido: pedido[0],
+//                 agua_caliente: pedido[1],
+//                 cacao: pedido[2],
+//                 espuma: pedido[3],
+//             })
+//         }
+//         if pedidos.is_empty() {
+//             println!("No hay pedidos para procesar");
+//             return Err(PedidoError::NoHayPedidos);
+//         }
+//         Ok(pedidos)
+//     }
+// }
 
 fn main() {
     println!("Bienvenido!");
     println!("Ingrese el archivo con el pedido");
-    let pedidos_archivo = read_file_lines(leer_por_pantalla()).expect("Failed to read file");
-    if let Ok(pedidos) = pedidos(pedidos_archivo) {
-        Cafetera::new().preparar_pedidos(pedidos);
+    let pedidos_archivo = read_file_lines(&leer_por_pantalla());
+    if let Ok(archivo) = pedidos_archivo {
+        if let Ok(pedidos) = pedidos(archivo) {
+            Cafetera::new().preparar_pedidos(pedidos);
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use tp1::chequeo_pedidos::{
+        agua_invalida, cacao_invalido, cafe_invalido, espuma_invalida, pedidos,
+    };
+    use tp1::{
+        constantes::{
+            MAX_AGUA_POR_PEDIDO, MAX_CACAO_POR_PEDIDO, MAX_CAFE_POR_PEDIDO, MAX_ESPUMA_POR_PEDIDO,
+        },
+        error::PedidoError,
+        pedido::Pedido,
+    };
 
     #[test]
     fn pedidos_ok_test() {

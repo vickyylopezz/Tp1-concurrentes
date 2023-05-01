@@ -1,3 +1,11 @@
+use crate::constantes::{
+    A, C, E, G, L, M, MOSTRAR_ESTADISTICAS, N, TIEMPO_RECURSO_UNIDAD, VACIO, X,
+};
+use crate::contenedor_agua::{rellenar_contenedor_agua, ContenedorAgua};
+use crate::contenedor_cacao::ContenedorCacao;
+use crate::contenedor_cafe::{rellenar_contenedor_cafe, ContenedorCafe};
+use crate::contenedor_espuma::{rellenar_contenedor_espuma, ContenedorEspuma};
+use crate::error::CafeteraError;
 use crate::pedido::Pedido;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, RwLock};
@@ -5,12 +13,6 @@ use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
 use std_semaphore::Semaphore;
-use tp1::constantes::{A, C, E, G, L, M, MOSTRAR_ESTADISTICAS, N, TIEMPO_RECURSO_UNIDAD, VACIO, X};
-use tp1::contenedor_agua::{rellenar_contenedor_agua, ContenedorAgua};
-use tp1::contenedor_cacao::ContenedorCacao;
-use tp1::contenedor_cafe::{rellenar_contenedor_cafe, ContenedorCafe};
-use tp1::contenedor_espuma::{rellenar_contenedor_espuma, ContenedorEspuma};
-use tp1::error::CafeteraError;
 
 pub struct Cafetera {
     /// Semaforo de los dispensadores
@@ -390,6 +392,12 @@ fn servir_cafe(
     Ok(())
 }
 
+impl Default for Cafetera {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -652,7 +660,7 @@ mod tests {
     }
 
     #[test]
-    fn rellenar_contenedores_test(){
+    fn rellenar_contenedores_test() {
         let cafe = Arc::new((Mutex::new(ContenedorCafe::new()), Condvar::new()));
         let cafe_clone = cafe.clone();
         let agua = Arc::new((Mutex::new(ContenedorAgua::new()), Condvar::new()));
@@ -661,7 +669,7 @@ mod tests {
         let espuma_clone = espuma.clone();
         let fin_pedidos = Arc::new(AtomicBool::new(false));
         let fin_pedidos_clone = fin_pedidos.clone();
-        
+
         let (cafe_lock, cafe_cvar) = &*cafe;
         if let Ok(mut cafe_mut) = cafe_lock.lock() {
             cafe_mut.cafe_molido = 0;
@@ -680,7 +688,8 @@ mod tests {
             espuma_mut.espuma = 0;
         }
 
-        let thread_rellenar = rellenar_contenedores(cafe_clone, agua_clone, espuma_clone, &fin_pedidos_clone);
+        let thread_rellenar =
+            rellenar_contenedores(cafe_clone, agua_clone, espuma_clone, &fin_pedidos_clone);
 
         if let Ok(cafe_mut) = cafe_cvar.wait(cafe_lock.lock().unwrap()) {
             fin_pedidos.store(true, Ordering::SeqCst);
@@ -707,7 +716,6 @@ mod tests {
             assert_eq!(espuma_mut.necesito_espuma, false);
         }
 
-
         if let Ok(contenedores) = thread_rellenar {
             for contenedor in contenedores {
                 contenedor
@@ -715,9 +723,5 @@ mod tests {
                     .expect("Error al hacer join al thread de rellenar recurso")
             }
         }
-        
     }
-
-        
-
 }
