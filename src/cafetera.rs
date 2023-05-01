@@ -28,7 +28,7 @@ pub struct Cafetera {
     /// Contenedor de espuma de la cafetera
     pub contenedor_espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
     /// Indica si se terminaron de preparar todos los pedidos
-    pub fin_pedidos: Arc<AtomicBool>,
+    fin_pedidos: Arc<AtomicBool>,
     /// Cantidad de pedidos completados
     pub pedidos_completados: Arc<Mutex<i32>>,
 }

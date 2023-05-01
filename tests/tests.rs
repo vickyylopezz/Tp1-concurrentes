@@ -4,7 +4,7 @@ mod tests {
 
     use tp1::cafetera::Cafetera;
     use tp1::chequeo_pedidos::pedidos;
-    use tp1::constantes::{M, C, E, G, L};
+    use tp1::constantes::{C, E, G, L, M};
     use tp1::error::PedidoError;
     use tp1::pedido::Pedido;
     use tp1::{archivo::read_file_lines, error::FileError};
@@ -52,9 +52,17 @@ mod tests {
 
         assert_eq!(pedidos_archivo, Ok(pedido_expected));
 
-        let pedidos_armar= pedidos(pedidos_archivo.expect("Error leer archivo") );
-        assert_eq!(pedidos_armar, Ok(vec![Pedido{cafe_molido: 4, agua_caliente: 7, cacao: 6, espuma:2}]));
-        
+        let pedidos_armar = pedidos(pedidos_archivo.expect("Error leer archivo"));
+        assert_eq!(
+            pedidos_armar,
+            Ok(vec![Pedido {
+                cafe_molido: 4,
+                agua_caliente: 7,
+                cacao: 6,
+                espuma: 2
+            }])
+        );
+
         let cafetera = Cafetera::new();
         let pedidos_preparar = pedidos_armar.expect("Error en pedidos");
 
@@ -67,8 +75,8 @@ mod tests {
     fn archivo_con_varios_pedidos_test() {
         let pedidos_archivo = read_file_lines("tests/pedidosTest4.txt");
 
-        let pedidos_armar= pedidos(pedidos_archivo.expect("Error leer archivo") );
-        
+        let pedidos_armar = pedidos(pedidos_archivo.expect("Error leer archivo"));
+
         let cafetera = Cafetera::new();
         let pedidos_preparar = pedidos_armar.expect("Error en pedidos");
 
@@ -90,31 +98,52 @@ mod tests {
         }
 
         if let Ok(cont_cafe) = cafetera.contenedor_cafe.0.lock() {
-            assert_eq!(cont_cafe.cafe_molido, M-(cafe_total-cont_cafe.cafe_granos_consumido));
-            assert_eq!(cont_cafe.cafe_granos, G-(cafe_total-(M-cont_cafe.cafe_molido)));
+            assert_eq!(
+                cont_cafe.cafe_molido,
+                M - (cafe_total - cont_cafe.cafe_granos_consumido)
+            );
+            assert_eq!(
+                cont_cafe.cafe_granos,
+                G - (cafe_total - (M - cont_cafe.cafe_molido))
+            );
             assert_eq!(cont_cafe.cafe_molido_consumido, cafe_total);
-            assert_eq!(cont_cafe.cafe_granos_consumido, cont_cafe.cafe_molido_consumido+cont_cafe.cafe_molido-M)
+            assert_eq!(
+                cont_cafe.cafe_granos_consumido,
+                cont_cafe.cafe_molido_consumido + cont_cafe.cafe_molido - M
+            )
         }
- 
+
         if let Ok(cont_agua) = cafetera.contenedor_agua.0.lock() {
             assert_eq!(cont_agua.agua_caliente_consumida, agua_total);
         }
 
         if let Ok(cont_cacao) = cafetera.contenedor_cacao.lock() {
-            assert_eq!(cont_cacao.cacao, C-cacao_total);
+            assert_eq!(cont_cacao.cacao, C - cacao_total);
             assert_eq!(cont_cacao.cacao_consumido, cacao_total);
         }
-        
+
         if let Ok(cont_espuma) = cafetera.contenedor_espuma.0.lock() {
-            assert_eq!(cont_espuma.espuma, E-(espuma_total-cont_espuma.leche_consumida));
+            assert_eq!(
+                cont_espuma.espuma,
+                E - (espuma_total - cont_espuma.leche_consumida)
+            );
             assert_eq!(cont_espuma.espuma_consumida, espuma_total);
-            assert_eq!(cont_espuma.leche, L-(espuma_total-(E-cont_espuma.espuma)));
-            assert_eq!(cont_espuma.leche_consumida, cont_espuma.espuma_consumida+cont_espuma.espuma-E);
+            assert_eq!(
+                cont_espuma.leche,
+                L - (espuma_total - (E - cont_espuma.espuma))
+            );
+            assert_eq!(
+                cont_espuma.leche_consumida,
+                cont_espuma.espuma_consumida + cont_espuma.espuma - E
+            );
         }
 
-        assert_eq!(*cafetera.pedidos_completados.lock().expect("Error en pedidos"), pedidos.len() as i32)
-
-
-        
+        assert_eq!(
+            *cafetera
+                .pedidos_completados
+                .lock()
+                .expect("Error en pedidos"),
+            pedidos.len() as i32
+        )
     }
 }
