@@ -1,6 +1,5 @@
 use std::{
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc, Condvar, Mutex,
     },
     thread,
@@ -19,6 +18,8 @@ pub struct ContenedorCafe {
     pub cafe_granos_consumido: i32,
     /// Cantidad de cafe molido consumido
     pub cafe_molido_consumido: i32,
+    /// Indica si ya se terminaron de realizar todos los pedidos
+    pub fin_pedidos: bool,
 }
 
 impl ContenedorCafe {
@@ -28,6 +29,7 @@ impl ContenedorCafe {
             cafe_molido: M,
             cafe_granos_consumido: 0,
             cafe_molido_consumido: 0,
+            fin_pedidos: false
         }
     }
 }
@@ -41,14 +43,13 @@ impl Default for ContenedorCafe {
 /// Rellena el contenedor de cafe consumiendo el cafe en granos
 pub fn rellenar_contenedor_cafe(
     cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
-    fin_pedidos_cafe: Arc<AtomicBool>,
 ) {
     let (cafe_lock, cafe_cvar) = &*cafe;
     loop {
         if let Ok(mut cafe_mut) = cafe_cvar.wait_while(cafe_lock.lock().unwrap(), |cont_cafe| {
-            cont_cafe.cafe_molido >= MAX_CAFE_POR_PEDIDO && !fin_pedidos_cafe.load(Ordering::SeqCst)
+            cont_cafe.cafe_molido >= MAX_CAFE_POR_PEDIDO && !cont_cafe.fin_pedidos
         }) {
-            if fin_pedidos_cafe.load(Ordering::SeqCst) {
+            if cafe_mut.fin_pedidos {
                 break;
             }
 
@@ -91,15 +92,12 @@ mod tests {
             cafe_mut.cafe_molido = 0;
         }
 
-        let fin_pedidos = Arc::new(AtomicBool::new(false));
-        let fin_pedidos_clone = fin_pedidos.clone();
-
         let thread_cafe = thread::spawn(move || {
-            rellenar_contenedor_cafe(cafe_clone, fin_pedidos_clone);
+            rellenar_contenedor_cafe(cafe_clone);
         });
 
-        if let Ok(cafe_mut) = cafe_cvar.wait(cafe_lock.lock().unwrap()) {
-            fin_pedidos.store(true, Ordering::SeqCst);
+        if let Ok(mut cafe_mut) = cafe_cvar.wait(cafe_lock.lock().unwrap()) {
+            cafe_mut.fin_pedidos = true;
             cafe_cvar.notify_all();
             assert_eq!(cafe_mut.cafe_molido, M);
             assert_eq!(cafe_mut.cafe_granos, G - M);
@@ -119,15 +117,12 @@ mod tests {
             cafe_mut.cafe_granos = M - 1;
         }
 
-        let fin_pedidos = Arc::new(AtomicBool::new(false));
-        let fin_pedidos_clone = fin_pedidos.clone();
-
         let thread_cafe = thread::spawn(move || {
-            rellenar_contenedor_cafe(cafe_clone, fin_pedidos_clone);
+            rellenar_contenedor_cafe(cafe_clone);
         });
 
-        if let Ok(cafe_mut) = cafe_cvar.wait(cafe_lock.lock().unwrap()) {
-            fin_pedidos.store(true, Ordering::SeqCst);
+        if let Ok(mut cafe_mut) = cafe_cvar.wait(cafe_lock.lock().unwrap()) {
+            cafe_mut.fin_pedidos = true;
             cafe_cvar.notify_all();
             assert_eq!(cafe_mut.cafe_molido, M - 1);
             assert_eq!(cafe_mut.cafe_granos, 0);

@@ -54,7 +54,7 @@ impl Cafetera {
         let cafe = self.contenedor_cafe.clone();
         let agua = self.contenedor_agua.clone();
         let espuma = self.contenedor_espuma.clone();
-        let thread_rellenar = rellenar_contenedores(cafe, agua, espuma, &self.fin_pedidos);
+        let thread_rellenar = rellenar_contenedores(cafe, agua, espuma);
 
         let pedidos_com = self.pedidos_completados.clone();
         let thread_estadisticas =
@@ -128,12 +128,21 @@ impl Cafetera {
 
         println!("Terminaron todos los pedidos");
         self.fin_pedidos.store(true, Ordering::SeqCst);
-        let (_, cafe_cvar) = &*self.contenedor_cafe;
-        cafe_cvar.notify_all();
-        let (_, agua_cvar) = &*self.contenedor_agua;
-        agua_cvar.notify_all();
-        let (_, espuma_cvar) = &*self.contenedor_espuma;
-        espuma_cvar.notify_all();
+        let (cafe_lock, cafe_cvar) = &*self.contenedor_cafe;
+        if let Ok(mut cafe_cont) = cafe_lock.lock() {
+            cafe_cont.fin_pedidos = true;
+            cafe_cvar.notify_all();
+        }
+        let (agua_lock, agua_cvar) = &*self.contenedor_agua;
+        if let Ok(mut agua_cont) = agua_lock.lock() {
+            agua_cont.fin_pedidos = true;
+            agua_cvar.notify_all();
+        }
+        let (espuma_lock, espuma_cvar) = &*self.contenedor_espuma;
+        if let Ok(mut espuma_cont) = espuma_lock.lock() {
+            espuma_cont.fin_pedidos = true;
+            espuma_cvar.notify_all();
+        }
 
         if let Ok(contenedores) = thread_rellenar {
             for contenedor in contenedores {
@@ -220,21 +229,17 @@ fn rellenar_contenedores(
     cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
     agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
     espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
-    fin_pedidos: &Arc<AtomicBool>,
 ) -> Result<Vec<JoinHandle<()>>, CafeteraError> {
-    let fin_pedidos_cafe = fin_pedidos.clone();
     let cafe_thread = thread::spawn(move || {
-        rellenar_contenedor_cafe(cafe, fin_pedidos_cafe);
+        rellenar_contenedor_cafe(cafe);
     });
 
-    let fin_pedidos_agua = fin_pedidos.clone();
     let agua_thread = thread::spawn(move || {
-        rellenar_contenedor_agua(agua, fin_pedidos_agua);
+        rellenar_contenedor_agua(agua);
     });
 
-    let fin_pedidos_espuma = fin_pedidos.clone();
     let espuma_thread = thread::spawn(move || {
-        rellenar_contenedor_espuma(espuma, fin_pedidos_espuma);
+        rellenar_contenedor_espuma(espuma);
     });
 
     let threads = vec![cafe_thread, agua_thread, espuma_thread];
@@ -647,8 +652,6 @@ mod tests {
         let agua_clone = agua.clone();
         let espuma = Arc::new((Mutex::new(ContenedorEspuma::new()), Condvar::new()));
         let espuma_clone = espuma.clone();
-        let fin_pedidos = Arc::new(AtomicBool::new(false));
-        let fin_pedidos_clone = fin_pedidos.clone();
 
         let (cafe_lock, cafe_cvar) = &*cafe;
         if let Ok(mut cafe_mut) = cafe_lock.lock() {
@@ -666,24 +669,24 @@ mod tests {
         }
 
         let thread_rellenar =
-            rellenar_contenedores(cafe_clone, agua_clone, espuma_clone, &fin_pedidos_clone);
+            rellenar_contenedores(cafe_clone, agua_clone, espuma_clone);
 
-        if let Ok(cafe_mut) = cafe_cvar.wait(cafe_lock.lock().unwrap()) {
-            fin_pedidos.store(true, Ordering::SeqCst);
+        if let Ok(mut cafe_mut) = cafe_cvar.wait(cafe_lock.lock().unwrap()) {
+            cafe_mut.fin_pedidos = true;
             cafe_cvar.notify_all();
             assert_eq!(cafe_mut.cafe_molido, M);
             assert_eq!(cafe_mut.cafe_granos, G - M);
             assert_eq!(cafe_mut.cafe_granos_consumido, M);
         }
 
-        if let Ok(agua_mut) = agua_lock.lock() {
-            fin_pedidos.store(true, Ordering::SeqCst);
+        if let Ok(mut agua_mut) = agua_lock.lock() {
+            agua_mut.fin_pedidos = true;
             agua_cvar.notify_all();
             assert_eq!(agua_mut.agua_caliente, A);
         }
 
-        if let Ok(espuma_mut) = espuma_lock.lock() {
-            fin_pedidos.store(true, Ordering::SeqCst);
+        if let Ok(mut espuma_mut) = espuma_lock.lock() {
+            espuma_mut.fin_pedidos = true;
             espuma_cvar.notify_all();
             assert_eq!(espuma_mut.espuma, E);
             assert_eq!(espuma_mut.leche, L - E);

@@ -1,6 +1,5 @@
 use std::{
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc, Condvar, Mutex,
     },
     thread,
@@ -19,6 +18,8 @@ pub struct ContenedorEspuma {
     pub espuma_consumida: i32,
     /// Cantidad de leche consumida
     pub leche_consumida: i32,
+    /// Indica si ya se terminaron de realizar todos los pedidos
+    pub fin_pedidos: bool,
 }
 impl ContenedorEspuma {
     pub fn new() -> Self {
@@ -27,6 +28,7 @@ impl ContenedorEspuma {
             leche: L,
             espuma_consumida: 0,
             leche_consumida: 0,
+            fin_pedidos: false
         }
     }
 }
@@ -40,17 +42,15 @@ impl Default for ContenedorEspuma {
 /// Rellena el contenedor de espuma consumiendo el contenedor de leche
 pub fn rellenar_contenedor_espuma(
     espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
-    fin_pedidos_espuma: Arc<AtomicBool>,
 ) {
     let (espuma_lock, espuma_cvar) = &*espuma;
     loop {
         if let Ok(mut espuma_mut) =
             espuma_cvar.wait_while(espuma_lock.lock().unwrap(), |cont_espuma| {
-                cont_espuma.espuma >= MAX_ESPUMA_POR_PEDIDO
-                    && !fin_pedidos_espuma.load(Ordering::SeqCst)
+                cont_espuma.espuma >= MAX_ESPUMA_POR_PEDIDO && !cont_espuma.fin_pedidos
             })
         {
-            if fin_pedidos_espuma.load(Ordering::SeqCst) {
+            if espuma_mut.fin_pedidos {
                 break;
             }
 
@@ -93,15 +93,12 @@ mod tests {
             espuma_mut.espuma = 0;
         }
 
-        let fin_pedidos = Arc::new(AtomicBool::new(false));
-        let fin_pedidos_clone = fin_pedidos.clone();
-
         let thread_espuma = thread::spawn(move || {
-            rellenar_contenedor_espuma(espuma_clone, fin_pedidos_clone);
+            rellenar_contenedor_espuma(espuma_clone);
         });
 
-        if let Ok(espuma_mut) = espuma_cvar.wait(espuma_lock.lock().unwrap()) {
-            fin_pedidos.store(true, Ordering::SeqCst);
+        if let Ok(mut espuma_mut) = espuma_cvar.wait(espuma_lock.lock().unwrap()) {
+            espuma_mut.fin_pedidos = true;
             espuma_cvar.notify_all();
             assert_eq!(espuma_mut.espuma, E);
             assert_eq!(espuma_mut.leche, L - E);
@@ -121,15 +118,12 @@ mod tests {
             espuma_mut.leche = E - 1;
         }
 
-        let fin_pedidos = Arc::new(AtomicBool::new(false));
-        let fin_pedidos_clone = fin_pedidos.clone();
-
         let thread_espuma = thread::spawn(move || {
-            rellenar_contenedor_espuma(espuma_clone, fin_pedidos_clone);
+            rellenar_contenedor_espuma(espuma_clone);
         });
 
-        if let Ok(espuma_mut) = espuma_cvar.wait(espuma_lock.lock().unwrap()) {
-            fin_pedidos.store(true, Ordering::SeqCst);
+        if let Ok(mut espuma_mut) = espuma_cvar.wait(espuma_lock.lock().unwrap()) {
+            espuma_mut.fin_pedidos = true;
             espuma_cvar.notify_all();
             assert_eq!(espuma_mut.espuma, E - 1);
             assert_eq!(espuma_mut.leche, 0);
