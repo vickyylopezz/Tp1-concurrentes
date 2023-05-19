@@ -52,3 +52,6 @@ En cambio, el contenedor de cacao solo se necesita un Arc(Mutex) ya que no se re
 - Los contenedores de cafe en granos, cacao y leche no se recargan. Una vez que se vacian, los pedidos que necesiten de esos recursos no podran prepararse.
 - Al iniciar el programa todos los contenedores arrancan llenos.
 - En el caso de que un pedido no se pueda completar por la falta de algun recurso, se descartará y se seguirá con el siguiente. 
+
+## Modificaciones:
+- Cambio logica de recargar contenedores removiendo el flag de necesito_xx. Ahora se recargará el contenedor cuando se llegue a un limite, este limite esta dado por la cantidad maxima de recurso que puede tener el pedido. De esta forma, si el contenedor se encuentra por debajo de esta cantidad maxima, es probable que la cafetera pueda solo completar el pedido que esta preparando y ninguno otro, o tambien que no pueda ni prepararlo. De esta forma, se recarga el contenedor y la cafetera se puede asegurar que siempre va a tener recurso disponible. 

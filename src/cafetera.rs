@@ -271,11 +271,8 @@ fn servir_espuma(
 ) -> Result<(), CafeteraError> {
     let (espuma_lock, espuma_cvar) = &*espuma;
     if let Ok(mut espuma_mut) = espuma_cvar.wait_while(espuma_lock.lock().unwrap(), |cont_espuma| {
-        cont_espuma.necesito_espuma = true;
-        espuma_cvar.notify_all();
         cont_espuma.espuma < pedido.espuma && cont_espuma.leche != VACIO
     }) {
-        espuma_mut.necesito_espuma = false;
         if espuma_mut.leche == VACIO && espuma_mut.espuma < pedido.espuma {
             println!(
                 "[Pedido {}] Contenedor de leche vacio y no me alcanza la espuma",
@@ -330,12 +327,8 @@ fn servir_agua(
 ) -> Result<(), CafeteraError> {
     let (agua_lock, agua_cvar) = &*agua;
     if let Ok(mut agua_mut) = agua_cvar.wait_while(agua_lock.lock().unwrap(), |cont_agua| {
-        cont_agua.necesito_agua = true;
-        agua_cvar.notify_all();
         cont_agua.agua_caliente < pedido.agua_caliente
     }) {
-        agua_mut.necesito_agua = false;
-
         agua_mut.agua_caliente_consumida += pedido.agua_caliente;
         agua_mut.agua_caliente -= pedido.agua_caliente;
         println!("[Pedido {}] sirviendo agua", id);
@@ -356,11 +349,8 @@ fn servir_cafe(
 ) -> Result<(), CafeteraError> {
     let (cafe_lock, cafe_cvar) = &*cafe;
     if let Ok(mut cafe_mut) = cafe_cvar.wait_while(cafe_lock.lock().unwrap(), |cont_cafe| {
-        cont_cafe.necesito_cafe = true;
-        cafe_cvar.notify_all();
         (cont_cafe.cafe_molido < pedido.cafe_molido) && (cont_cafe.cafe_granos != VACIO)
     }) {
-        cafe_mut.necesito_cafe = false;
         if cafe_mut.cafe_granos == VACIO && cafe_mut.cafe_molido < pedido.cafe_molido {
             println!(
                 "[Pedido {}] Contenedor de cafe en granos vacio y no me alcanza el cafe molido",
@@ -414,7 +404,6 @@ mod tests {
             assert_eq!(cafe_mut.cafe_molido_consumido, pedido_clone.cafe_molido);
             assert_eq!(cafe_mut.cafe_granos, G);
             assert_eq!(cafe_mut.cafe_granos_consumido, 0);
-            assert_eq!(cafe_mut.necesito_cafe, false);
         };
         thread_cafe.join().expect("Error join thread cafe");
     }
@@ -449,7 +438,6 @@ mod tests {
             assert_eq!(cafe_mut.cafe_molido_consumido, 0);
             assert_eq!(cafe_mut.cafe_granos, 0);
             assert_eq!(cafe_mut.cafe_granos_consumido, 0);
-            assert_eq!(cafe_mut.necesito_cafe, false);
         };
         thread_cafe.join().expect("Error join thread cafe");
     }
@@ -474,7 +462,6 @@ mod tests {
         if let Ok(agua_mut) = agua_cvar.wait(agua_lock.lock().unwrap()) {
             assert_eq!(agua_mut.agua_caliente, A - pedido_clone.agua_caliente);
             assert_eq!(agua_mut.agua_caliente_consumida, pedido_clone.agua_caliente);
-            assert_eq!(agua_mut.necesito_agua, false);
         };
         thread_agua.join().expect("Error join thread cafe");
     }
@@ -547,7 +534,6 @@ mod tests {
             assert_eq!(espuma_mut.espuma_consumida, pedido_clone.espuma);
             assert_eq!(espuma_mut.leche, L);
             assert_eq!(espuma_mut.leche_consumida, 0);
-            assert_eq!(espuma_mut.necesito_espuma, false);
         };
         thread_espuma.join().expect("Error join thread cafe");
     }
@@ -582,7 +568,6 @@ mod tests {
             assert_eq!(espuma_mut.espuma_consumida, 0);
             assert_eq!(espuma_mut.leche, 0);
             assert_eq!(espuma_mut.leche_consumida, 0);
-            assert_eq!(espuma_mut.necesito_espuma, false);
         };
         thread_espuma.join().expect("Error join thread cafe");
     }
@@ -624,14 +609,12 @@ mod tests {
             assert_eq!(cafe_mut.cafe_molido_consumido, pedido_clone.cafe_molido);
             assert_eq!(cafe_mut.cafe_granos, G);
             assert_eq!(cafe_mut.cafe_granos_consumido, 0);
-            assert_eq!(cafe_mut.necesito_cafe, false);
         }
 
         let (agua_lock, _) = &*agua;
         if let Ok(agua_mut) = agua_lock.lock() {
             assert_eq!(agua_mut.agua_caliente, A - pedido_clone.agua_caliente);
             assert_eq!(agua_mut.agua_caliente_consumida, pedido_clone.agua_caliente);
-            assert_eq!(agua_mut.necesito_agua, false);
         }
 
         if let Ok(cacao_mut) = cacao.lock() {
@@ -645,7 +628,6 @@ mod tests {
             assert_eq!(espuma_mut.espuma_consumida, pedido_clone.espuma);
             assert_eq!(espuma_mut.leche, L);
             assert_eq!(espuma_mut.leche_consumida, 0);
-            assert_eq!(espuma_mut.necesito_espuma, false);
         };
     }
 
@@ -663,18 +645,15 @@ mod tests {
         let (cafe_lock, cafe_cvar) = &*cafe;
         if let Ok(mut cafe_mut) = cafe_lock.lock() {
             cafe_mut.cafe_molido = 0;
-            cafe_mut.necesito_cafe = true;
         }
 
         let (agua_lock, agua_cvar) = &*agua;
         if let Ok(mut agua_mut) = agua_lock.lock() {
             agua_mut.agua_caliente = 0;
-            agua_mut.necesito_agua = true;
         }
 
         let (espuma_lock, espuma_cvar) = &*espuma;
         if let Ok(mut espuma_mut) = espuma_lock.lock() {
-            espuma_mut.necesito_espuma = true;
             espuma_mut.espuma = 0;
         }
 
@@ -687,14 +666,12 @@ mod tests {
             assert_eq!(cafe_mut.cafe_molido, M);
             assert_eq!(cafe_mut.cafe_granos, G - M);
             assert_eq!(cafe_mut.cafe_granos_consumido, M);
-            assert_eq!(cafe_mut.necesito_cafe, false);
         }
 
         if let Ok(agua_mut) = agua_lock.lock() {
             fin_pedidos.store(true, Ordering::SeqCst);
             agua_cvar.notify_all();
             assert_eq!(agua_mut.agua_caliente, A);
-            assert_eq!(agua_mut.necesito_agua, false);
         }
 
         if let Ok(espuma_mut) = espuma_lock.lock() {
@@ -703,7 +680,6 @@ mod tests {
             assert_eq!(espuma_mut.espuma, E);
             assert_eq!(espuma_mut.leche, L - E);
             assert_eq!(espuma_mut.leche_consumida, E);
-            assert_eq!(espuma_mut.necesito_espuma, false);
         }
 
         if let Ok(contenedores) = thread_rellenar {

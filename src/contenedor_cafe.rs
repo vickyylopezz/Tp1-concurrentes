@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use crate::constantes::{G, M, TIEMPO_CAFE_REPONER, X};
+use crate::constantes::{G, M, MAX_CAFE_POR_PEDIDO, TIEMPO_CAFE_REPONER, X};
 
 #[derive(Debug)]
 pub struct ContenedorCafe {
@@ -19,8 +19,6 @@ pub struct ContenedorCafe {
     pub cafe_granos_consumido: i32,
     /// Cantidad de cafe molido consumido
     pub cafe_molido_consumido: i32,
-    /// Indica si es necesario recargar el contenedor de cafe molido
-    pub necesito_cafe: bool,
 }
 
 impl ContenedorCafe {
@@ -30,7 +28,6 @@ impl ContenedorCafe {
             cafe_molido: M,
             cafe_granos_consumido: 0,
             cafe_molido_consumido: 0,
-            necesito_cafe: false,
         }
     }
 }
@@ -49,7 +46,7 @@ pub fn rellenar_contenedor_cafe(
     let (cafe_lock, cafe_cvar) = &*cafe;
     loop {
         if let Ok(mut cafe_mut) = cafe_cvar.wait_while(cafe_lock.lock().unwrap(), |cont_cafe| {
-            !cont_cafe.necesito_cafe && !fin_pedidos_cafe.load(Ordering::SeqCst)
+            cont_cafe.cafe_molido >= MAX_CAFE_POR_PEDIDO && !fin_pedidos_cafe.load(Ordering::SeqCst)
         }) {
             if fin_pedidos_cafe.load(Ordering::SeqCst) {
                 break;
@@ -61,14 +58,12 @@ pub fn rellenar_contenedor_cafe(
                 cafe_mut.cafe_granos -= M - cafe_mut.cafe_molido;
                 cafe_mut.cafe_granos_consumido += M - cafe_mut.cafe_molido;
                 cafe_mut.cafe_molido = M;
-                cafe_mut.necesito_cafe = false;
             } else {
                 println!("Recargando cafe molido");
                 thread::sleep(Duration::from_millis(TIEMPO_CAFE_REPONER));
                 cafe_mut.cafe_molido += cafe_mut.cafe_granos;
                 cafe_mut.cafe_granos_consumido += cafe_mut.cafe_granos;
                 cafe_mut.cafe_granos = 0;
-                cafe_mut.necesito_cafe = false;
                 println!("Contenedor de cafe en granos vacio");
                 cafe_cvar.notify_all();
                 break;
@@ -93,7 +88,6 @@ mod tests {
 
         let (cafe_lock, cafe_cvar) = &*cafe;
         if let Ok(mut cafe_mut) = cafe_lock.lock() {
-            cafe_mut.necesito_cafe = true;
             cafe_mut.cafe_molido = 0;
         }
 
@@ -110,7 +104,6 @@ mod tests {
             assert_eq!(cafe_mut.cafe_molido, M);
             assert_eq!(cafe_mut.cafe_granos, G - M);
             assert_eq!(cafe_mut.cafe_granos_consumido, M);
-            assert_eq!(cafe_mut.necesito_cafe, false);
         };
         thread_cafe.join().expect("Error join thread cafe");
     }
@@ -122,7 +115,6 @@ mod tests {
 
         let (cafe_lock, cafe_cvar) = &*cafe;
         if let Ok(mut cafe_mut) = cafe_lock.lock() {
-            cafe_mut.necesito_cafe = true;
             cafe_mut.cafe_molido = 0;
             cafe_mut.cafe_granos = M - 1;
         }
@@ -140,7 +132,6 @@ mod tests {
             assert_eq!(cafe_mut.cafe_molido, M - 1);
             assert_eq!(cafe_mut.cafe_granos, 0);
             assert_eq!(cafe_mut.cafe_granos_consumido, M - 1);
-            assert_eq!(cafe_mut.necesito_cafe, false);
         };
         thread_cafe.join().expect("Error join thread cafe");
     }

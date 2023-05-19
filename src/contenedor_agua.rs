@@ -1,4 +1,4 @@
-use crate::constantes::{A, TIEMPO_AGUA_REPONER};
+use crate::constantes::{A, MAX_AGUA_POR_PEDIDO, TIEMPO_AGUA_REPONER};
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -14,8 +14,6 @@ pub struct ContenedorAgua {
     pub agua_caliente: i32,
     /// Cantidad de agua caliente consumida
     pub agua_caliente_consumida: i32,
-    /// Indica si es necesario recargar el contenedor de agua
-    pub necesito_agua: bool,
 }
 
 impl ContenedorAgua {
@@ -23,7 +21,6 @@ impl ContenedorAgua {
         ContenedorAgua {
             agua_caliente: A,
             agua_caliente_consumida: 0,
-            necesito_agua: false,
         }
     }
 }
@@ -42,7 +39,8 @@ pub fn rellenar_contenedor_agua(
     let (agua_lock, agua_cvar) = &*agua;
     loop {
         if let Ok(mut agua_mut) = agua_cvar.wait_while(agua_lock.lock().unwrap(), |cont_agua| {
-            !cont_agua.necesito_agua && !fin_pedidos_agua.load(Ordering::SeqCst)
+            cont_agua.agua_caliente >= MAX_AGUA_POR_PEDIDO
+                && !fin_pedidos_agua.load(Ordering::SeqCst)
         }) {
             if fin_pedidos_agua.load(Ordering::SeqCst) {
                 break;
@@ -51,7 +49,6 @@ pub fn rellenar_contenedor_agua(
             println!("Recargando agua caliente");
             agua_mut.agua_caliente = A;
             thread::sleep(Duration::from_millis(TIEMPO_AGUA_REPONER));
-            agua_mut.necesito_agua = false;
         }
         agua_cvar.notify_one();
     }
@@ -68,7 +65,6 @@ mod tests {
 
         let (agua_lock, agua_cvar) = &*agua;
         if let Ok(mut agua_mut) = agua_lock.lock() {
-            agua_mut.necesito_agua = true;
             agua_mut.agua_caliente = 0;
         }
 
@@ -83,7 +79,6 @@ mod tests {
             fin_pedidos.store(true, Ordering::SeqCst);
             agua_cvar.notify_all();
             assert_eq!(agua_mut.agua_caliente, A);
-            assert_eq!(agua_mut.necesito_agua, false);
         };
         thread_agua.join().expect("Error join thread agua");
     }

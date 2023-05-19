@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use crate::constantes::{E, L, TIEMPO_ESPUMA_REPONER, X};
+use crate::constantes::{E, L, MAX_ESPUMA_POR_PEDIDO, TIEMPO_ESPUMA_REPONER, X};
 
 #[derive(Debug)]
 pub struct ContenedorEspuma {
@@ -19,8 +19,6 @@ pub struct ContenedorEspuma {
     pub espuma_consumida: i32,
     /// Cantidad de leche consumida
     pub leche_consumida: i32,
-    /// Indica si es necesario recargar el contenedor de espuma
-    pub necesito_espuma: bool,
 }
 impl ContenedorEspuma {
     pub fn new() -> Self {
@@ -29,7 +27,6 @@ impl ContenedorEspuma {
             leche: L,
             espuma_consumida: 0,
             leche_consumida: 0,
-            necesito_espuma: false,
         }
     }
 }
@@ -49,7 +46,8 @@ pub fn rellenar_contenedor_espuma(
     loop {
         if let Ok(mut espuma_mut) =
             espuma_cvar.wait_while(espuma_lock.lock().unwrap(), |cont_espuma| {
-                !cont_espuma.necesito_espuma && !fin_pedidos_espuma.load(Ordering::SeqCst)
+                cont_espuma.espuma >= MAX_ESPUMA_POR_PEDIDO
+                    && !fin_pedidos_espuma.load(Ordering::SeqCst)
             })
         {
             if fin_pedidos_espuma.load(Ordering::SeqCst) {
@@ -62,14 +60,12 @@ pub fn rellenar_contenedor_espuma(
                 espuma_mut.leche -= E - espuma_mut.espuma;
                 espuma_mut.leche_consumida += E - espuma_mut.espuma;
                 espuma_mut.espuma = E;
-                espuma_mut.necesito_espuma = false;
             } else {
                 println!("Recargando espuma");
                 thread::sleep(Duration::from_millis(TIEMPO_ESPUMA_REPONER));
                 espuma_mut.espuma += espuma_mut.leche;
                 espuma_mut.leche_consumida += espuma_mut.leche;
                 espuma_mut.leche = 0;
-                espuma_mut.necesito_espuma = false;
                 println!("Contenedor de leche vacio");
                 espuma_cvar.notify_all();
                 break;
@@ -94,7 +90,6 @@ mod tests {
 
         let (espuma_lock, espuma_cvar) = &*espuma;
         if let Ok(mut espuma_mut) = espuma_lock.lock() {
-            espuma_mut.necesito_espuma = true;
             espuma_mut.espuma = 0;
         }
 
@@ -111,7 +106,6 @@ mod tests {
             assert_eq!(espuma_mut.espuma, E);
             assert_eq!(espuma_mut.leche, L - E);
             assert_eq!(espuma_mut.leche_consumida, E);
-            assert_eq!(espuma_mut.necesito_espuma, false);
         };
         thread_espuma.join().expect("Error join thread espuma");
     }
@@ -123,7 +117,6 @@ mod tests {
 
         let (espuma_lock, espuma_cvar) = &*espuma;
         if let Ok(mut espuma_mut) = espuma_lock.lock() {
-            espuma_mut.necesito_espuma = true;
             espuma_mut.espuma = 0;
             espuma_mut.leche = E - 1;
         }
@@ -141,7 +134,6 @@ mod tests {
             assert_eq!(espuma_mut.espuma, E - 1);
             assert_eq!(espuma_mut.leche, 0);
             assert_eq!(espuma_mut.leche_consumida, E - 1);
-            assert_eq!(espuma_mut.necesito_espuma, false);
         };
         thread_espuma.join().expect("Error join thread espuma");
     }
