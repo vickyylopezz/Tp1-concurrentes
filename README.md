@@ -55,3 +55,4 @@ En cambio, el contenedor de cacao solo se necesita un Arc(Mutex) ya que no se re
 
 ## Modificaciones:
 - Cambio logica de recargar contenedores removiendo el flag de necesito_xx. Ahora se recargará el contenedor cuando se llegue a un limite, este limite esta dado por la cantidad maxima de recurso que puede tener el pedido. De esta forma, si el contenedor se encuentra por debajo de esta cantidad maxima, es probable que la cafetera pueda solo completar el pedido que esta preparando y ninguno otro, o tambien que no pueda ni prepararlo. De esta forma, se recarga el contenedor y la cafetera se puede asegurar que siempre va a tener recurso disponible. 
+- Agrego que solo se sirva el recurso y el pedido lo necesita, es decir, esa cantidad es mayor que cero.

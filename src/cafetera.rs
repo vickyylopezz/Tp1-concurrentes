@@ -250,13 +250,21 @@ fn pedido(
     cacao: Arc<Mutex<ContenedorCacao>>,
     espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
 ) -> Result<(), CafeteraError> {
-    servir_cafe(cafe, pedido.clone(), id)?;
+    if pedido.cafe_molido > 0 {
+        servir_cafe(cafe, pedido.clone(), id)?;
+    }
 
-    servir_agua(agua, pedido.clone(), id)?;
+    if pedido.agua_caliente > 0 {
+        servir_agua(agua, pedido.clone(), id)?;
+    }
 
-    servir_cacao(cacao, pedido.clone(), id)?;
+    if pedido.cacao > 0 {
+        servir_cacao(cacao, pedido.clone(), id)?;
+    }
 
-    servir_espuma(espuma, pedido, id)?;
+    if pedido.espuma > 0 {
+        servir_espuma(espuma, pedido, id)?;
+    }
 
     println!("[Pedido {}] terminé", id);
 
