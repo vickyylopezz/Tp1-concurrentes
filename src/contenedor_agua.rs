@@ -1,8 +1,6 @@
 use crate::constantes::{A, MAX_AGUA_POR_PEDIDO, TIEMPO_AGUA_REPONER};
 use std::{
-    sync::{
-        Arc, Condvar, Mutex,
-    },
+    sync::{Arc, Condvar, Mutex},
     thread,
     time::Duration,
 };
@@ -22,7 +20,7 @@ impl ContenedorAgua {
         ContenedorAgua {
             agua_caliente: A,
             agua_caliente_consumida: 0,
-            fin_pedidos: false
+            fin_pedidos: false,
         }
     }
 }
@@ -34,9 +32,7 @@ impl Default for ContenedorAgua {
 }
 
 /// Rellena el contenedor de agua consumiendo el agua de la red
-pub fn rellenar_contenedor_agua(
-    agua: Arc<(Mutex<ContenedorAgua>, Condvar)>,
-) {
+pub fn rellenar_contenedor_agua(agua: Arc<(Mutex<ContenedorAgua>, Condvar)>) {
     let (agua_lock, agua_cvar) = &*agua;
     loop {
         if let Ok(mut agua_mut) = agua_cvar.wait_while(agua_lock.lock().unwrap(), |cont_agua| {

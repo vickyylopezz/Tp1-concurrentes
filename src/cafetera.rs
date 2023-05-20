@@ -72,8 +72,9 @@ impl Cafetera {
             let espuma_pedido = self.contenedor_espuma.clone();
 
             let pedidos_com = self.pedidos_completados.clone();
+            let _acquire = semaforo_clone.acquire();
+
             pedidos_handle.push(thread::spawn(move || {
-                let _access = semaforo_clone.access();
                 let mut num_dispensador: i32 = -1;
                 if let Ok(mut dispensadores_mut) = dispensadores_clone.write() {
                     for i in 0..dispensadores_mut.len() {
@@ -104,6 +105,7 @@ impl Cafetera {
                 if let Ok(mut dispensadores_mut) = dispensadores_clone.write() {
                     dispensadores_mut[num_dispensador as usize] = false;
                 }
+                let _release = semaforo_clone.release();
             }));
         }
 
@@ -668,8 +670,7 @@ mod tests {
             espuma_mut.espuma = 0;
         }
 
-        let thread_rellenar =
-            rellenar_contenedores(cafe_clone, agua_clone, espuma_clone);
+        let thread_rellenar = rellenar_contenedores(cafe_clone, agua_clone, espuma_clone);
 
         if let Ok(mut cafe_mut) = cafe_cvar.wait(cafe_lock.lock().unwrap()) {
             cafe_mut.fin_pedidos = true;

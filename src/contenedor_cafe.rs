@@ -1,7 +1,5 @@
 use std::{
-    sync::{
-        Arc, Condvar, Mutex,
-    },
+    sync::{Arc, Condvar, Mutex},
     thread,
     time::Duration,
 };
@@ -29,7 +27,7 @@ impl ContenedorCafe {
             cafe_molido: M,
             cafe_granos_consumido: 0,
             cafe_molido_consumido: 0,
-            fin_pedidos: false
+            fin_pedidos: false,
         }
     }
 }
@@ -41,9 +39,7 @@ impl Default for ContenedorCafe {
 }
 
 /// Rellena el contenedor de cafe consumiendo el cafe en granos
-pub fn rellenar_contenedor_cafe(
-    cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>,
-) {
+pub fn rellenar_contenedor_cafe(cafe: Arc<(Mutex<ContenedorCafe>, Condvar)>) {
     let (cafe_lock, cafe_cvar) = &*cafe;
     loop {
         if let Ok(mut cafe_mut) = cafe_cvar.wait_while(cafe_lock.lock().unwrap(), |cont_cafe| {

@@ -1,7 +1,5 @@
 use std::{
-    sync::{
-        Arc, Condvar, Mutex,
-    },
+    sync::{Arc, Condvar, Mutex},
     thread,
     time::Duration,
 };
@@ -28,7 +26,7 @@ impl ContenedorEspuma {
             leche: L,
             espuma_consumida: 0,
             leche_consumida: 0,
-            fin_pedidos: false
+            fin_pedidos: false,
         }
     }
 }
@@ -40,13 +38,11 @@ impl Default for ContenedorEspuma {
 }
 
 /// Rellena el contenedor de espuma consumiendo el contenedor de leche
-pub fn rellenar_contenedor_espuma(
-    espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>,
-) {
+pub fn rellenar_contenedor_espuma(espuma: Arc<(Mutex<ContenedorEspuma>, Condvar)>) {
     let (espuma_lock, espuma_cvar) = &*espuma;
     loop {
-        if let Ok(mut espuma_mut) =
-            espuma_cvar.wait_while(espuma_lock.lock().unwrap(), |cont_espuma| {
+        if let Ok(mut espuma_mut) = espuma_cvar
+            .wait_while(espuma_lock.lock().unwrap(), |cont_espuma| {
                 cont_espuma.espuma >= MAX_ESPUMA_POR_PEDIDO && !cont_espuma.fin_pedidos
             })
         {
